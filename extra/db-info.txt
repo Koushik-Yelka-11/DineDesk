@@ -1,0 +1,96 @@
+CREATE TABLE categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+CREATE TABLE sqlite_sequence(name,seq);
+CREATE TABLE menu_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    price REAL NOT NULL CHECK (price >= 0),
+    FOREIGN KEY (category_id)
+        REFERENCES categories(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+CREATE TABLE orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_date TEXT NOT NULL,
+    token_number INTEGER NOT NULL,
+    total_bill REAL NOT NULL CHECK (total_bill >= 0),
+    UNIQUE (order_date, token_number)
+);
+CREATE TABLE order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    menu_item_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    price REAL NOT NULL CHECK (price >= 0),
+    FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    FOREIGN KEY (menu_item_id)
+        REFERENCES menu_items(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+0
+ok
+categories|6
+menu_items|33
+orders|5
+order_items|11
+id|name
+1|Tiffins
+2|Dosa Items
+3|Rice Items
+4|Meals
+5|Chinese
+6|Juice
+id|category_id|name|price
+1|1|Idly|40.0
+2|1|Vada|35.0
+3|1|Idly Vada|50.0
+4|1|Poori|60.0
+5|1|Upma|40.0
+6|1|Pongal|60.0
+7|1|Mysore Bonda|45.0
+8|1|Chapati|50.0
+9|1|Parotta|60.0
+10|2|Plain Dosa|60.0
+11|2|Masala Dosa|80.0
+12|2|Onion Dosa|80.0
+13|2|Set Dosa|70.0
+14|2|Cheese Dosa|110.0
+15|2|Paneer Dosa|120.0
+16|3|Plain Rice|50.0
+17|3|Curd Rice|70.0
+18|3|Lemon Rice|70.0
+19|3|Jeera Rice|100.0
+20|3|Veg Pulao|120.0
+21|4|South Indian Meals|150.0
+22|4|North Indian Thali|180.0
+23|5|Veg Noodles|110.0
+24|5|Veg Fried Rice|120.0
+25|5|Veg Manchurian|130.0
+26|6|Orange Juice|70.0
+27|6|Mango Juice|80.0
+28|6|Mosambi Juice|70.0
+29|6|Watermelon Juice|60.0
+30|6|Pineapple Juice|70.0
+31|6|Grape Juice|70.0
+32|6|Lemon Juice|30.0
+33|6|Banana Shake|80.0
+id|order_date|token_number|total_bill
+5|2026-10-11|3|140.0
+4|2026-10-11|2|140.0
+3|2026-10-11|1|140.0
+2|2026-10-10|1|140.0
+1|2026-10-09|1|230.0
+id|order_id|menu_item_id|quantity|price
+11|5|1|1|40.0
+10|5|8|2|50.0
+9|4|1|1|40.0
+8|4|8|2|50.0
+7|3|1|1|40.0

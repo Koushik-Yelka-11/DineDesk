@@ -1,0 +1,37 @@
+src/.DS_Store
+src/main/.DS_Store
+src/main/java/.DS_Store
+src/main/java/com/.DS_Store
+src/main/java/com/dinedesk/.DS_Store
+src/main/java/com/dinedesk/CategoryTest.java
+src/main/java/com/dinedesk/DatabaseTest.java
+src/main/java/com/dinedesk/Main.java
+src/main/java/com/dinedesk/MenuItemTest.java
+src/main/java/com/dinedesk/OrderSaveTest.java
+src/main/java/com/dinedesk/OrderTest.java
+src/main/java/com/dinedesk/controller/DashboardController.java
+src/main/java/com/dinedesk/controller/NewOrderController.java
+src/main/java/com/dinedesk/dao/CategoryDAO.java
+src/main/java/com/dinedesk/dao/MenuItemDAO.java
+src/main/java/com/dinedesk/dao/OrderDAO.java
+src/main/java/com/dinedesk/database/Database.java
+src/main/java/com/dinedesk/model/Category.java
+src/main/java/com/dinedesk/model/MenuItem.java
+src/main/java/com/dinedesk/model/Order.java
+src/main/java/com/dinedesk/model/OrderItem.java
+src/main/java/module-info.java
+src/main/resources/.DS_Store
+src/main/resources/com/.DS_Store
+src/main/resources/com/dinedesk/.DS_Store
+src/main/resources/com/dinedesk/view/NewOrder.fxml
+src/main/resources/com/dinedesk/view/dashboard.fxml
+--- mvn -v ---
+Apache Maven 3.10.0 (c43a36b8d67be7e0805a411bc0898af1a51f5472)
+Maven home: /opt/homebrew/Cellar/maven/3.10.0/libexec
+Java version: 21.0.12.1, vendor: Homebrew, runtime: /opt/homebrew/Cellar/openjdk@21/21.0.12.1/libexec/openjdk.jdk/Contents/Home
+Default locale: en_US, platform encoding: UTF-8, time zone: Asia/Kolkata
+OS name: "mac os x", version: "15.7.7", arch: "aarch64", family: "mac"
+--- java -version ---
+openjdk version "21.0.12.1" 2026-08-18
+OpenJDK Runtime Environment Homebrew (build 21.0.12.1)
+OpenJDK 64-Bit Server VM Homebrew (build 21.0.12.1, mixed mode, sharing)
