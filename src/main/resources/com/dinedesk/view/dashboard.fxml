@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.dinedesk.controller.DashboardController"
+            styleClass="root">
+
+    <!-- LEFT SIDEBAR -->
+    <left>
+        <VBox fx:id="sidebar"
+              prefWidth="255"
+              minWidth="255"
+              styleClass="sidebar"
+              spacing="10">
+
+            <HBox alignment="CENTER_LEFT"
+                  spacing="12"
+                  styleClass="brand">
+
+                <ImageView fitWidth="48"
+                           fitHeight="48"
+                           preserveRatio="false"
+                           smooth="true">
+                    <image>
+                        <Image url="@../images/raghavendra-logo.png"/>
+                    </image>
+                </ImageView>
+
+                <VBox spacing="2">
+                    <Label text="UdupiDesk"
+                           styleClass="brand-title"/>
+                    <Label text="Billing System"
+                           styleClass="brand-subtitle"/>
+                </VBox>
+            </HBox>
+
+            <Label text="WORKSPACE"
+                   style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 12 12 4 12;"/>
+
+            <Button text="☰   Dashboard"
+                    onAction="#openDashboard"
+                    styleClass="nav-primary"
+                    maxWidth="Infinity"/>
+
+            <Button text="⊕   New Order"
+                    onAction="#openNewOrder"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"/>
+
+            <Button text="?   Orders"
+                    onAction="#openOrders"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"/>
+
+            <Button text="?   Menu"
+                    onAction="#openMenu"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"/>
+
+
+            <Button text="?   Reports"
+                    onAction="#openReports"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"/>
+
+            <Label text="SYSTEM"
+                   style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 20 12 4 12;"/>
+
+            <Button text="⚙   Settings"
+                    onAction="#openSettings"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"/>
+
+            <Button text="?   Backup"
+                    onAction="#openBackup"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"/>
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <VBox styleClass="panel" spacing="5">
+                <Label text="●  Local data safe"
+                       style="-fx-text-fill: #07884F; -fx-font-weight: bold;"/>
+                <Label text="Your database stays on this device"
+                       wrapText="true"
+                       style="-fx-text-fill: #94A3B8; -fx-font-size: 10px;"/>
+            </VBox>
+
+            <Label text="DineDesk POS · v1.0"
+                   style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-alignment: CENTER; -fx-padding: 8;"/>
+
+        </VBox>
+    </left>
+
+    <!-- MAIN AREA -->
+    <center>
+        <VBox spacing="24" styleClass="page">
+
+            <!-- TOP BAR -->
+            <HBox alignment="CENTER_LEFT" spacing="16">
+                <VBox HBox.hgrow="ALWAYS" spacing="5">
+                    <Label text="OVERVIEW"
+                           style="-fx-text-fill: #2864F0; -fx-font-size: 10px; -fx-font-weight: bold;"/>
+                    <Label text="Dashboard"
+                           styleClass="page-title"/>
+                    <Label text="Welcome back. Here's your restaurant overview."
+                           styleClass="page-subtitle"/>
+                </VBox>
+
+                <HBox alignment="CENTER" spacing="8"
+                      style="-fx-background-color: #E8FBF1; -fx-background-radius: 20; -fx-padding: 10 14;">
+                    <Label text="●"
+                           style="-fx-text-fill: #08A05C;"/>
+                    <Label text="Offline Mode"
+                           style="-fx-text-fill: #07884F; -fx-font-weight: bold;"/>
+                </HBox>
+
+                <VBox alignment="CENTER_LEFT" spacing="3"
+                      style="-fx-background-color: white; -fx-border-color: #DFE7F1; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 9 14;">
+                    <Label text="TODAY"
+                           style="-fx-text-fill: #94A3B8; -fx-font-size: 9px;"/>
+                    <Label fx:id="dateLabel"
+                           text="2026-10-11"
+                           styleClass="stat-value-small"/>
+                </VBox>
+            </HBox>
+
+            <!-- FOUR SUMMARY CARDS -->
+            <GridPane hgap="16" vgap="16">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                </columnConstraints>
+
+                <VBox GridPane.columnIndex="0"
+                      styleClass="stat-card"
+                      spacing="14">
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="Today's Sales"
+                               styleClass="stat-caption"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="↗"
+                               style="-fx-text-fill: #2864F0; -fx-font-size: 18px; -fx-font-weight: bold;"/>
+                    </HBox>
+                    <Label fx:id="salesLabel"
+                           text="₹0.00"
+                           styleClass="stat-value"/>
+                    <Label text="Sales recorded today"
+                           style="-fx-text-fill: #94A3B8; -fx-font-size: 10px;"/>
+                </VBox>
+
+                <VBox GridPane.columnIndex="1"
+                      styleClass="stat-card"
+                      spacing="14">
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="Orders Today"
+                               styleClass="stat-caption"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="✓"
+                               style="-fx-text-fill: #8B5CF6; -fx-font-size: 18px;"/>
+                    </HBox>
+                    <Label fx:id="ordersLabel"
+                           text="0"
+                           styleClass="stat-value"/>
+                    <Label text="Orders recorded today"
+                           style="-fx-text-fill: #94A3B8; -fx-font-size: 10px;"/>
+                </VBox>
+
+
+
+            </GridPane>
+
+            <!-- RECENT ORDERS -->
+            <VBox styleClass="panel" spacing="0"
+                  VBox.vgrow="ALWAYS">
+
+                <HBox alignment="CENTER_LEFT"
+                      spacing="12"
+                      style="-fx-padding: 0 0 18 0;">
+                    <VBox spacing="5" HBox.hgrow="ALWAYS">
+                        <Label text="Recent Orders"
+                               styleClass="section-title"/>
+                        <Label text="Latest orders from your restaurant"
+                               styleClass="page-subtitle"/>
+                    </VBox>
+
+                    <Button text="View All  ›"
+                            onAction="#openOrders"
+                            style="-fx-background-color: transparent; -fx-text-fill: #2864F0; -fx-font-weight: bold;"/>
+                </HBox>
+
+                <GridPane styleClass="orders-header">
+                    <columnConstraints>
+                        <ColumnConstraints percentWidth="20"/>
+                        <ColumnConstraints percentWidth="20"/>
+                        <ColumnConstraints percentWidth="20"/>
+                        <ColumnConstraints percentWidth="20"/>
+                        <ColumnConstraints percentWidth="20"/>
+                    </columnConstraints>
+
+                    <Label text="ORDER"
+                           GridPane.columnIndex="0"
+                           styleClass="stat-caption"/>
+                    <Label text="DATE"
+                           GridPane.columnIndex="1"
+                           styleClass="stat-caption"/>
+                    <Label text="ITEMS"
+                           GridPane.columnIndex="2"
+                           styleClass="stat-caption"/>
+                    <Label text="AMOUNT"
+                           GridPane.columnIndex="3"
+                           styleClass="stat-caption"/>
+                    <Label text="STATUS"
+                           GridPane.columnIndex="4"
+                           styleClass="stat-caption"/>
+                </GridPane>
+
+                <VBox alignment="CENTER"
+                      spacing="10"
+                      VBox.vgrow="ALWAYS"
+                      style="-fx-padding: 45 10 45 10;">
+                    <Label text="Recent orders will appear here"
+                           styleClass="section-title"/>
+                    <Label text="Your existing orders will be connected to this table next."
+                           wrapText="true"
+                           styleClass="page-subtitle"/>
+                </VBox>
+
+            </VBox>
+
+        </VBox>
+    </center>
+
+</BorderPane>
