@@ -112,13 +112,7 @@
                            styleClass="page-subtitle"/>
                 </VBox>
 
-                <HBox alignment="CENTER" spacing="8"
-                      style="-fx-background-color: #E8FBF1; -fx-background-radius: 20; -fx-padding: 10 14;">
-                    <Label text="●"
-                           style="-fx-text-fill: #08A05C;"/>
-                    <Label text="Offline Mode"
-                           style="-fx-text-fill: #07884F; -fx-font-weight: bold;"/>
-                </HBox>
+
 
                 <VBox alignment="CENTER_LEFT" spacing="3"
                       style="-fx-background-color: white; -fx-border-color: #DFE7F1; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 9 14;">
@@ -208,7 +202,7 @@
                     <Label text="ORDER"
                            GridPane.columnIndex="0"
                            styleClass="stat-caption"/>
-                    <Label text="DATE"
+                    <Label text="DATE / TIME"
                            GridPane.columnIndex="1"
                            styleClass="stat-caption"/>
                     <Label text="ITEMS"
@@ -221,14 +215,21 @@
                            GridPane.columnIndex="4"
                            styleClass="stat-caption"/>
                 </GridPane>
-
-                <VBox alignment="CENTER"
+                <VBox fx:id="recentOrdersBox" spacing="0">
+                    <Label text="Loading recent orders..."
+                           styleClass="body-copy"
+                           style="-fx-padding: 35px;"/>
+                </VBox>
+                <VBox fx:id="recentOrdersEmptyState"
+                      alignment="CENTER"
                       spacing="10"
                       VBox.vgrow="ALWAYS"
                       style="-fx-padding: 45 10 45 10;">
-                    <Label text="Recent orders will appear here"
+
+                    <Label text="No orders have been saved today."
                            styleClass="section-title"/>
-                    <Label text="Your existing orders will be connected to this table next."
+
+                    <Label text="Your recent orders will appear here when you save an order."
                            wrapText="true"
                            styleClass="page-subtitle"/>
                 </VBox>

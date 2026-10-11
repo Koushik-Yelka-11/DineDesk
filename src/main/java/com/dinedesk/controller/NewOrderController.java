@@ -3,7 +3,9 @@ package com.dinedesk.controller;
 
 import com.dinedesk.Main;
 import com.dinedesk.database.Database;
-
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.sql.Statement;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -15,7 +17,8 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
-
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -290,11 +293,13 @@ public class NewOrderController {
         }
 
         String date = LocalDate.now().toString();
-
+        String time = LocalTime.now()
+                .format(DateTimeFormatter.ofPattern("HH:mm:ss"));
         String insertOrder = """
-                INSERT INTO orders(order_date, token_number, total_bill)
-                VALUES (?, ?, ?)
-                """;
+        INSERT INTO orders
+            (order_date, order_time, token_number, total_bill)
+        VALUES (?, ?, ?, ?)
+        """;
 
         String insertItem = """
                 INSERT INTO order_items(order_id, menu_item_id, quantity, price)
@@ -329,10 +334,11 @@ public class NewOrderController {
                              connection.prepareStatement(
                                      insertOrder,
                                      Statement.RETURN_GENERATED_KEYS)) {
-
                     orderStatement.setString(1, date);
-                    orderStatement.setInt(2, token);
-                    orderStatement.setDouble(3, total);
+                    orderStatement.setString(2, time);
+                    orderStatement.setInt(3, token);
+                    orderStatement.setDouble(4, total);
+
                     orderStatement.executeUpdate();
 
                     try (ResultSet keys = orderStatement.getGeneratedKeys()) {

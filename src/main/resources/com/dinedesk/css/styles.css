@@ -270,16 +270,6 @@
     -fx-tooltip-visible: false;
 }
 
-/* Online/offline status */
-.status-pill {
-    -fx-background-color: #E8FBF1;
-    -fx-text-fill: #008B55;
-    -fx-padding: 9px 14px;
-    -fx-background-radius: 20px;
-    -fx-font-size: 12px;
-    -fx-font-weight: bold;
-}
-
 /* Summary cards and content panels */
 .stat-card,
 .panel {
@@ -386,14 +376,6 @@
     -fx-padding: 8px 10px;
 }
 
-.text-field:focused,
-.text-area:focused,
-.combo-box:focused,
-.choice-box:focused,
-.date-picker:focused {
-    -fx-border-color: #7BA7FF;
-    -fx-border-width: 1;
-}
 
 /* Lists and tables */
 .list-view,
@@ -498,24 +480,6 @@
 
 .order-id {
     -fx-text-fill: #2563EB;
-    -fx-font-weight: bold;
-}
-
-.paid-status {
-    -fx-background-color: #E8FBF1;
-    -fx-text-fill: #008B55;
-    -fx-padding: 5px 10px;
-    -fx-background-radius: 14px;
-    -fx-font-size: 11px;
-    -fx-font-weight: bold;
-}
-
-.pending-status {
-    -fx-background-color: #FFF4E5;
-    -fx-text-fill: #C65D00;
-    -fx-padding: 5px 10px;
-    -fx-background-radius: 14px;
-    -fx-font-size: 11px;
     -fx-font-weight: bold;
 }
 

@@ -109,9 +109,6 @@
                     <Label text="DineDesk / Counter management"
                            styleClass="page-subtitle"/>
                 </VBox>
-
-                <Label text="●  OFFLINE READY"
-                       styleClass="status-pill"/>
             </HBox>
 
             <VBox styleClass="panel"
@@ -119,7 +116,7 @@
                   VBox.vgrow="ALWAYS">
 
                 <TextField fx:id="searchField"
-                           promptText="Search by token or date..."/>
+                           promptText="Search by token, date, or time..."/>
 
                 <TableView fx:id="ordersTable"
                            VBox.vgrow="ALWAYS">
@@ -127,19 +124,23 @@
                     <columns>
                         <TableColumn fx:id="idColumn"
                                      text="Order ID"
-                                     prefWidth="130"/>
+                                     prefWidth="120"/>
 
                         <TableColumn fx:id="dateColumn"
                                      text="Date"
-                                     prefWidth="240"/>
+                                     prefWidth="190"/>
+
+                        <TableColumn fx:id="timeColumn"
+                                     text="Time"
+                                     prefWidth="150"/>
 
                         <TableColumn fx:id="tokenColumn"
                                      text="Daily token"
-                                     prefWidth="180"/>
+                                     prefWidth="160"/>
 
                         <TableColumn fx:id="totalColumn"
                                      text="Total (₹)"
-                                     prefWidth="180"/>
+                                     prefWidth="160"/>
                     </columns>
 
                 </TableView>

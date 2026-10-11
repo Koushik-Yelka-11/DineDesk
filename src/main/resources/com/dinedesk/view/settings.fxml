@@ -113,8 +113,6 @@
                            styleClass="page-subtitle"/>
                 </VBox>
 
-                <Label text="●  OFFLINE READY"
-                       styleClass="status-pill"/>
             </HBox>
 
             <VBox styleClass="panel" spacing="14">

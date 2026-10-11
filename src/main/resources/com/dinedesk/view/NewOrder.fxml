@@ -108,9 +108,7 @@
 
                 <HBox alignment="CENTER" spacing="8"
                       style="-fx-background-color: #E8FBF1; -fx-background-radius: 20; -fx-padding: 10 14;">
-                    <Label text="●" style="-fx-text-fill: #08A05C;"/>
-                    <Label text="Offline Mode"
-                           style="-fx-text-fill: #07884F; -fx-font-weight: bold;"/>
+
                 </HBox>
             </HBox>
 

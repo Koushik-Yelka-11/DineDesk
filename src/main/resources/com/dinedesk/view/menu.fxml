@@ -109,9 +109,6 @@
                     <Label text="DineDesk / Counter management"
                            styleClass="page-subtitle"/>
                 </VBox>
-
-                <Label text="●  OFFLINE READY"
-                       styleClass="status-pill"/>
             </HBox>
 
             <HBox spacing="16" VBox.vgrow="ALWAYS">
