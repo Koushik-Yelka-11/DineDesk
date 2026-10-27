@@ -111,7 +111,7 @@ public class DashboardController extends NavController {
                     }
 
                     String token = Integer.toString(
-                            recentOrdersBox.getChildren().size() + 1
+                            result.getInt("token_number")
                     );
                     String orderDate = result.getString("order_date");
                     String orderTime = result.getString("order_time");

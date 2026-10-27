@@ -1,33 +1,42 @@
-
 package com.dinedesk.controller;
 
 import com.dinedesk.Main;
 import com.dinedesk.database.Database;
+import javafx.scene.layout.Region;
+import javafx.print.PrinterJob;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.text.NumberFormat;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.sql.Statement;
-import javafx.beans.property.SimpleStringProperty;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import javafx.scene.layout.TilePane;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
-import java.time.LocalDate;
-import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 
 public class NewOrderController {
 
@@ -36,7 +45,9 @@ public class NewOrderController {
     @FXML private TextField searchField;
     @FXML private ComboBox<String> categoryCombo;
 
-    @FXML private ListView<MenuEntry> menuListView;
+    @FXML private TilePane menuGrid;
+    @FXML private ScrollPane menuScrollPane;
+
     @FXML private ListView<CartEntry> cartListView;
 
     @FXML private Label menuCountLabel;
@@ -57,25 +68,27 @@ public class NewOrderController {
 
     private boolean sidebarCollapsed = false;
 
+    // If an order is saved but printing fails, retain its receipt for a retry.
+    // Retrying will print the same saved order rather than creating a duplicate.
+    private String pendingReceipt;
+
     @FXML
     private void initialize() {
-        menuListView.setItems(menuItems);
+
+        // Configure the menu grid and make its columns adapt to available width.
+        menuGrid.setHgap(12);
+        menuGrid.setVgap(12);
+        menuGrid.setPrefColumns(3);
+        menuGrid.setPrefTileHeight(210);
+        menuGrid.setTileAlignment(Pos.TOP_LEFT);
+        menuGrid.setAlignment(Pos.TOP_LEFT);
+        menuGrid.setMinWidth(0);
+        menuGrid.setMaxWidth(Double.MAX_VALUE);
+        menuGrid.setPrefWidth(Region.USE_COMPUTED_SIZE);
+
+
+        menuGrid.getChildren().clear();
         cartListView.setItems(cartItems);
-
-        menuListView.setCellFactory(list -> new ListCell<>() {
-            @Override
-            protected void updateItem(MenuEntry item, boolean empty) {
-                super.updateItem(item, empty);
-
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(item.name + "\n"
-                            + currency.format(item.price));
-                }
-            }
-        });
-
         cartListView.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(CartEntry item, boolean empty) {
@@ -83,11 +96,74 @@ public class NewOrderController {
 
                 if (empty || item == null) {
                     setText(null);
-                } else {
-                    setText(item.name
-                            + "   × " + item.quantity
-                            + "\n" + currency.format(item.getLineTotal()));
+                    setGraphic(null);
+                    setStyle("-fx-background-color: transparent;");
+                    return;
                 }
+
+                Label nameLabel = new Label(item.name);
+                nameLabel.setStyle(
+                        "-fx-font-size: 13px;" +
+                                "-fx-font-weight: bold;" +
+                                "-fx-text-fill: #172033;");
+                nameLabel.setWrapText(true);
+
+                Label unitPriceLabel = new Label(
+                        currency.format(item.price) + " × " + item.quantity);
+                unitPriceLabel.setStyle(
+                        "-fx-font-size: 12px;" +
+                                "-fx-text-fill: #64748B;");
+
+                VBox itemDetails = new VBox(4, nameLabel, unitPriceLabel);
+                itemDetails.setAlignment(Pos.CENTER_LEFT);
+                HBox.setHgrow(itemDetails, Priority.ALWAYS);
+
+                Button minusButton = createQuantityButton("−", "Decrease " + item.name);
+                minusButton.setOnAction(event -> {
+                    if (item.quantity > 1) {
+                        item.quantity--;
+                    } else {
+                        cartItems.remove(item);
+                    }
+                    cartListView.refresh();
+                    updateTotals();
+                });
+
+                Label quantityLabel = new Label(String.valueOf(item.quantity));
+                quantityLabel.setMinWidth(20);
+                quantityLabel.setAlignment(Pos.CENTER);
+                quantityLabel.setStyle(
+                        "-fx-font-size: 14px;" +
+                                "-fx-font-weight: bold;" +
+                                "-fx-text-fill: #172033;");
+
+                Button plusButton = createQuantityButton("+", "Increase " + item.name);
+                plusButton.setOnAction(event -> {
+                    item.quantity++;
+                    cartListView.refresh();
+                    updateTotals();
+                });
+
+                HBox quantityControls = new HBox(8, minusButton, quantityLabel, plusButton);
+                quantityControls.setAlignment(Pos.CENTER);
+
+                Label lineTotalLabel = new Label(currency.format(item.getLineTotal()));
+                lineTotalLabel.setMinWidth(78);
+                lineTotalLabel.setAlignment(Pos.CENTER_RIGHT);
+                lineTotalLabel.setStyle(
+                        "-fx-font-size: 13px;" +
+                                "-fx-font-weight: bold;" +
+                                "-fx-text-fill: #172033;");
+
+                HBox row = new HBox(12, itemDetails, quantityControls, lineTotalLabel);
+                row.setAlignment(Pos.CENTER_LEFT);
+                row.setPadding(new Insets(9, 6, 9, 6));
+                row.setMinHeight(66);
+
+                setText(null);
+                setGraphic(row);
+                setPadding(new Insets(2, 4, 2, 4));
+                setStyle("-fx-background-color: transparent;");
             }
         });
 
@@ -120,7 +196,6 @@ public class NewOrderController {
             showError("Could not load categories", exception);
         }
     }
-
     private void loadMenuItems() {
         allMenuItems.clear();
 
@@ -168,18 +243,88 @@ public class NewOrderController {
                 .toList());
 
         menuCountLabel.setText(menuItems.size() + " items");
+
+        menuGrid.getChildren().clear();
+        for (MenuEntry item : menuItems) {
+            menuGrid.getChildren().add(createMenuCard(item));
+        }
     }
 
-    @FXML
-    private void addSelectedItem() {
-        MenuEntry selected = menuListView.getSelectionModel()
-                .getSelectedItem();
+    private VBox createMenuCard(MenuEntry item) {
+        VBox card = new VBox(9);
+        card.setPrefWidth(190);
+        card.setMinWidth(0);
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setPadding(new Insets(10));
+        card.setStyle(
+                "-fx-background-color: white;" +
+                        "-fx-border-color: #E5EAF2;" +
+                        "-fx-border-radius: 12;" +
+                        "-fx-background-radius: 12;");
 
-        if (selected == null) {
-            showInfo("Select a menu item first.");
-            return;
+        StackPane imageHolder = new StackPane();
+        imageHolder.setPrefSize(168, 105);
+        imageHolder.setMinHeight(105);
+        imageHolder.setMaxHeight(105);
+        imageHolder.setStyle(
+                "-fx-background-color: #F1F5F9;" +
+                        "-fx-background-radius: 9;");
+
+        ImageView imageView = createMenuImage(item.name);
+        if (imageView != null) {
+            imageView.setFitWidth(168);
+            imageView.setFitHeight(105);
+            imageView.setPreserveRatio(false);
+            imageHolder.getChildren().add(imageView);
+        } else {
+            Label placeholder = new Label("🍽");
+            placeholder.setStyle("-fx-font-size: 34px;");
+            imageHolder.getChildren().add(placeholder);
         }
 
+        Label nameLabel = new Label(item.name);
+        nameLabel.setWrapText(true);
+        nameLabel.setMinHeight(Region.USE_PREF_SIZE);
+        nameLabel.setStyle(
+                "-fx-font-size: 13px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #172033;");
+
+        Label priceLabel = new Label(currency.format(item.price));
+        priceLabel.setStyle(
+                "-fx-font-size: 12px;" +
+                        "-fx-text-fill: #64748B;");
+
+        Label plusSymbol = new Label("+");
+        plusSymbol.setStyle(
+                "-fx-text-fill: #245DDB;" +
+                        "-fx-font-size: 22px;" +
+                        "-fx-font-weight: bold;");
+
+        Button addButton = new Button();
+        addButton.setGraphic(plusSymbol);
+        addButton.setAccessibleText("Add " + item.name + " to current order");
+        addButton.setFocusTraversable(false);
+        addButton.setMinSize(36, 36);
+        addButton.setPrefSize(36, 36);
+        addButton.setMaxSize(36, 36);
+        addButton.setStyle(
+                "-fx-background-color: #EAF2FF;" +
+                        "-fx-border-color: transparent;" +
+                        "-fx-background-radius: 9;" +
+                        "-fx-padding: 0;" +
+                        "-fx-cursor: hand;");
+        addButton.setOnAction(event -> addToCart(item));
+
+        HBox bottomRow = new HBox(6, priceLabel, new javafx.scene.layout.Region(), addButton);
+        bottomRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(bottomRow.getChildren().get(1), Priority.ALWAYS);
+
+        card.getChildren().addAll(imageHolder, nameLabel, bottomRow);
+        return card;
+    }
+
+    private void addToCart(MenuEntry selected) {
         for (CartEntry entry : cartItems) {
             if (entry.menuItemId == selected.id) {
                 entry.quantity++;
@@ -197,6 +342,62 @@ public class NewOrderController {
         ));
 
         updateTotals();
+    }
+
+    /**
+     * Loads an optional item photo from:
+     * src/main/resources/com/dinedesk/images/menu/
+     * Example: idly.jpg, masala-dosa.png
+     * If no matching image exists, the menu card shows a food placeholder.
+     */
+    private ImageView createMenuImage(String itemName) {
+        String fileBase = itemName.toLowerCase(Locale.ROOT)
+                .trim()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
+
+        String[] extensions = { "jpg", "png", "jpeg" };
+
+        for (String extension : extensions) {
+            String resourcePath = "/com/dinedesk/images/menu/"
+                    + fileBase + "." + extension;
+            var imageUrl = getClass().getResource(resourcePath);
+
+            if (imageUrl != null) {
+                Image image = new Image(imageUrl.toExternalForm(), 168, 105, true, true);
+                ImageView imageView = new ImageView(image);
+                imageView.setFitWidth(168);
+                imageView.setFitHeight(105);
+                imageView.setPreserveRatio(false);
+                imageView.setSmooth(true);
+                return imageView;
+            }
+        }
+
+        return null;
+    }
+
+    private Button createQuantityButton(String symbol, String accessibleText) {
+        Label symbolLabel = new Label(symbol);
+        symbolLabel.setStyle(
+                "-fx-font-size: 17px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #245DDB;");
+
+        Button button = new Button();
+        button.setGraphic(symbolLabel);
+        button.setAccessibleText(accessibleText);
+        button.setFocusTraversable(false);
+        button.setMinSize(30, 30);
+        button.setPrefSize(30, 30);
+        button.setMaxSize(30, 30);
+        button.setStyle(
+                "-fx-background-color: #EAF2FF;" +
+                        "-fx-border-color: transparent;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-padding: 0;" +
+                        "-fx-cursor: hand;");
+        return button;
     }
 
     @FXML
@@ -287,26 +488,43 @@ public class NewOrderController {
 
     @FXML
     private void saveOrder() {
-        if (cartItems.isEmpty()) {
-            showInfo("Add at least one item before saving the order.");
+        // If a previous order was saved but could not be printed, retry that
+        // receipt first. Never create a duplicate order on a print retry.
+        if (pendingReceipt != null) {
+            printPendingReceipt();
             return;
         }
 
-        String date = LocalDate.now().toString();
-        String time = LocalTime.now()
-                .format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-        String insertOrder = """
-        INSERT INTO orders
-            (order_date, order_time, token_number, total_bill)
-        VALUES (?, ?, ?, ?)
-        """;
+        if (cartItems.isEmpty()) {
+            showInfo("Add at least one item before printing the bill.");
+            return;
+        }
 
+        // Snapshot the cart before saving so the receipt cannot change if the UI changes.
+        List<CartEntry> receiptItems = new ArrayList<>();
+        for (CartEntry item : cartItems) {
+            receiptItems.add(new CartEntry(
+                    item.menuItemId, item.name, item.price, item.quantity));
+        }
+
+        String date = LocalDate.now().toString();
+        LocalTime now = LocalTime.now();
+        String time = now.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        String displayDate = LocalDate.parse(date)
+                .format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        String displayTime = now.format(DateTimeFormatter.ofPattern("hh:mm a"));
+
+        String insertOrder = """
+                INSERT INTO orders
+                    (order_date, order_time, token_number, total_bill)
+                VALUES (?, ?, ?, ?)
+                """;
         String insertItem = """
                 INSERT INTO order_items(order_id, menu_item_id, quantity, price)
                 VALUES (?, ?, ?, ?)
                 """;
 
-        double total = cartItems.stream()
+        double total = receiptItems.stream()
                 .mapToDouble(CartEntry::getLineTotal)
                 .sum();
 
@@ -315,13 +533,10 @@ public class NewOrderController {
 
             try {
                 int token;
-
                 try (PreparedStatement tokenQuery = connection.prepareStatement(
                         "SELECT COALESCE(MAX(token_number), 0) + 1 "
                                 + "FROM orders WHERE order_date = ?")) {
-
                     tokenQuery.setString(1, date);
-
                     try (ResultSet result = tokenQuery.executeQuery()) {
                         result.next();
                         token = result.getInt(1);
@@ -329,16 +544,12 @@ public class NewOrderController {
                 }
 
                 int orderId;
-
-                try (PreparedStatement orderStatement =
-                             connection.prepareStatement(
-                                     insertOrder,
-                                     Statement.RETURN_GENERATED_KEYS)) {
+                try (PreparedStatement orderStatement = connection.prepareStatement(
+                        insertOrder, Statement.RETURN_GENERATED_KEYS)) {
                     orderStatement.setString(1, date);
                     orderStatement.setString(2, time);
                     orderStatement.setInt(3, token);
                     orderStatement.setDouble(4, total);
-
                     orderStatement.executeUpdate();
 
                     try (ResultSet keys = orderStatement.getGeneratedKeys()) {
@@ -346,33 +557,36 @@ public class NewOrderController {
                             throw new java.sql.SQLException(
                                     "Could not retrieve the saved order ID.");
                         }
-
                         orderId = keys.getInt(1);
                     }
                 }
 
                 try (PreparedStatement itemStatement =
                              connection.prepareStatement(insertItem)) {
-
-                    for (CartEntry item : cartItems) {
+                    for (CartEntry item : receiptItems) {
                         itemStatement.setInt(1, orderId);
                         itemStatement.setInt(2, item.menuItemId);
                         itemStatement.setInt(3, item.quantity);
                         itemStatement.setDouble(4, item.price);
                         itemStatement.addBatch();
                     }
-
                     itemStatement.executeBatch();
                 }
 
                 connection.commit();
 
-                showInfo("Order saved successfully!\n\n"
-                        + "Token number: " + token + "\n"
-                        + "Total: " + currency.format(total));
+                pendingReceipt = buildReceipt(
+                        orderId, token, displayDate, displayTime, receiptItems, total);
 
+                // Clear the submitted cart after the database commit. If printing
+                // fails, pendingReceipt remains available for a safe retry while a
+                // new customer can start a separate order.
                 cartItems.clear();
                 updateTotals();
+
+                // The order is committed before printing. A printer error must not
+                // roll back or duplicate this order.
+                printPendingReceipt();
 
             } catch (Exception exception) {
                 connection.rollback();
@@ -383,6 +597,87 @@ public class NewOrderController {
 
         } catch (Exception exception) {
             showError("Could not save order", exception);
+        }
+    }
+
+    private String buildReceipt(int orderId, int token, String date, String time,
+                                List<CartEntry> items, double total) {
+        StringBuilder receipt = new StringBuilder();
+        final int width = 32;
+        receipt.append(center("UDUPIDESK", width)).append('\n');
+        receipt.append(center("Restaurant Billing", width)).append('\n');
+        receipt.append("--------------------------------\n");
+        receipt.append(String.format(Locale.US, "Bill No : %d%n", orderId));
+        receipt.append(String.format(Locale.US, "Token   : %03d%n", token));
+        receipt.append("Date    : ").append(date).append('\n');
+        receipt.append("Time    : ").append(time).append('\n');
+        receipt.append("--------------------------------\n");
+        receipt.append(String.format(Locale.US, "%-15s %3s %10s%n", "Item", "Qty", "Amount"));
+        receipt.append("--------------------------------\n");
+
+        for (CartEntry item : items) {
+            String itemName = item.name;
+            // Wrap long item names so the receipt remains readable on narrow paper.
+            while (itemName.length() > 15) {
+                receipt.append(itemName, 0, 15).append('\n');
+                itemName = itemName.substring(15);
+            }
+            receipt.append(String.format(Locale.US, "%-15s %3d %10.2f%n",
+                    itemName, item.quantity, item.getLineTotal()));
+        }
+
+        receipt.append("--------------------------------\n");
+        receipt.append(String.format(Locale.US, "Subtotal:%22.2f%n", total));
+        receipt.append(String.format(Locale.US, "TOTAL:%25.2f%n", total));
+        receipt.append("--------------------------------\n");
+        receipt.append(center("Thank you! Visit Again.", width)).append('\n');
+        receipt.append(center("Powered by UdupiDesk", width)).append('\n');
+        receipt.append("\n\n");
+        return receipt.toString();
+    }
+
+    private String center(String value, int width) {
+        if (value.length() >= width) return value;
+        int leftPadding = (width - value.length()) / 2;
+        return " ".repeat(leftPadding) + value;
+    }
+
+    private void printPendingReceipt() {
+        if (pendingReceipt == null) return;
+
+        PrinterJob job = PrinterJob.createPrinterJob();
+        if (job == null) {
+            showInfo("The order is saved, but no printer is available. "
+                    + "Connect or configure a printer, then click Print Bill to retry.");
+            return;
+        }
+
+        Text receiptText = new Text(pendingReceipt);
+        receiptText.setFont(Font.font("Monospaced", 9));
+        receiptText.setWrappingWidth(250);
+
+        boolean printed;
+        try {
+            printed = job.printPage(receiptText);
+            if (printed) {
+                printed = job.endJob();
+            } else {
+                job.cancelJob();
+            }
+        } catch (Exception exception) {
+            job.cancelJob();
+            printed = false;
+            exception.printStackTrace();
+        }
+
+        if (printed) {
+            pendingReceipt = null;
+            showInfo("Bill sent to the printer successfully.");
+        } else {
+            showInfo("The order has been saved, but printing failed.\n\n"
+                    + "Check that the printer is connected, powered on, and configured "
+                    + "as your computer's default printer. Click Print Bill again to retry "
+                    + "the same saved bill without creating a duplicate order.");
         }
     }
 

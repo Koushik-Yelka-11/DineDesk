@@ -1,4 +1,3 @@
-
 package com.dinedesk.database;
 
 import java.sql.*;
@@ -47,6 +46,7 @@ public final class Database {
                 "CREATE TABLE IF NOT EXISTS orders(" +
                         "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "order_date TEXT NOT NULL," +
+                        "order_time TEXT NOT NULL DEFAULT '00:00:00'," +
                         "token_number INTEGER NOT NULL," +
                         "total_bill REAL NOT NULL," +
                         "UNIQUE(order_date,token_number))",
@@ -67,6 +67,20 @@ public final class Database {
         ) {
             for (String x : q) {
                 s.execute(x);
+            }
+
+            // Migrate existing DineDesk databases that predate the order_time column.
+            boolean hasOrderTime = false;
+            try (ResultSet columns = s.executeQuery("PRAGMA table_info(orders)")) {
+                while (columns.next()) {
+                    if ("order_time".equalsIgnoreCase(columns.getString("name"))) {
+                        hasOrderTime = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasOrderTime) {
+                s.execute("ALTER TABLE orders ADD COLUMN order_time TEXT NOT NULL DEFAULT '00:00:00'");
             }
 
             String[] cats = {

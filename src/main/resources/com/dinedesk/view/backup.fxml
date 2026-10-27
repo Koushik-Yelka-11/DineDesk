@@ -42,27 +42,27 @@
             <Label text="WORKSPACE"
                    style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 12 12 4 12;"/>
 
-            <Button text="☰   Dashboard"
+            <Button text="🏠   Dashboard"
                     onAction="#openDashboard"
                     styleClass="nav-button"
                     maxWidth="Infinity"/>
 
-            <Button text="⊕   New Order"
+            <Button text="➕   New Order"
                     onAction="#openNewOrder"
                     styleClass="nav-button"
                     maxWidth="Infinity"/>
 
-            <Button text="?   Orders"
+            <Button text="🍽️   Orders"
                     onAction="#openOrders"
                     styleClass="nav-button"
                     maxWidth="Infinity"/>
 
-            <Button text="?   Menu"
+            <Button text="📋   Menu"
                     onAction="#openMenu"
                     styleClass="nav-button"
                     maxWidth="Infinity"/>
 
-            <Button text="?   Reports"
+            <Button text="📊   Reports"
                     onAction="#openReports"
                     styleClass="nav-button"
                     maxWidth="Infinity"/>
@@ -70,12 +70,12 @@
             <Label text="SYSTEM"
                    style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 20 12 4 12;"/>
 
-            <Button text="⚙   Settings"
+            <Button text="🛠️️   Settings"
                     onAction="#openSettings"
                     styleClass="nav-button"
                     maxWidth="Infinity"/>
 
-            <Button text="?   Backup"
+            <Button text="⇪   Backup"
                     onAction="#openBackup"
                     styleClass="nav-primary"
                     maxWidth="Infinity"/>
@@ -92,7 +92,9 @@
             </VBox>
 
             <Label text="DineDesk POS · v1.0"
-                   style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-alignment: CENTER; -fx-padding: 8;"/>
+                   maxWidth="Infinity"
+                   alignment="CENTER"
+                   style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-padding: 8 0 0 0;"/>
 
         </VBox>
     </left>
