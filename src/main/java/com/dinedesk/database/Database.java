@@ -1,36 +1,71 @@
+
 package com.dinedesk.database;
 
 import java.sql.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public final class Database {
 
     private Database() {
     }
 
-    public static Connection connect() throws SQLException {
-        Connection c = DriverManager.getConnection("jdbc:sqlite:dinedesk.db");
+    // Get the permanent DineDesk database location.
+    private static Path getDatabasePath() throws SQLException {
+        String appData = System.getenv("APPDATA");
 
-        try (Statement s = c.createStatement()) {
-            s.execute("PRAGMA foreign_keys=ON");
-            s.execute("PRAGMA busy_timeout=5000");
+        Path appDataPath;
+
+        if (appData != null && !appData.isBlank()) {
+            appDataPath = Paths.get(appData);
+        } else {
+            appDataPath = Paths.get(
+                    System.getProperty("user.home"),
+                    "AppData",
+                    "Roaming"
+            );
         }
 
-        return c;
+        Path directory = appDataPath.resolve("DineDesk");
+
+        try {
+            Files.createDirectories(directory);
+        } catch (java.io.IOException e) {
+            throw new SQLException(
+                    "Unable to create DineDesk database directory.", e
+            );
+        }
+
+        return directory.resolve("dinedesk.db");
     }
 
-    public static java.sql.Connection getConnection() throws java.sql.SQLException {
-        java.sql.Connection connection =
-                java.sql.DriverManager.getConnection("jdbc:sqlite:dinedesk.db");
+    // Open the database connection.
+    public static Connection connect() throws SQLException {
 
-        try (java.sql.Statement statement = connection.createStatement()) {
-            statement.execute("PRAGMA foreign_keys = ON");
-            statement.execute("PRAGMA busy_timeout = 5000");
+        Path dbPath = getDatabasePath();
+
+        System.out.println("DineDesk Database: " + dbPath);
+
+        Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + dbPath
+        );
+
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA foreign_keys=ON");
+            statement.execute("PRAGMA busy_timeout=5000");
         }
 
         return connection;
     }
 
+    // Both methods use exactly the same database.
+    public static Connection getConnection() throws SQLException {
+        return connect();
+    }
+
     public static void initialize() {
+
         String[] q = {
                 "CREATE TABLE IF NOT EXISTS categories(" +
                         "id INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -65,30 +100,40 @@ public final class Database {
                 Connection c = connect();
                 Statement s = c.createStatement()
         ) {
+
             for (String x : q) {
                 s.execute(x);
             }
 
-            // Migrate existing DineDesk databases that predate the order_time column.
+            // Migrate existing databases that predate the order_time column.
             boolean hasOrderTime = false;
-            try (ResultSet columns = s.executeQuery("PRAGMA table_info(orders)")) {
+
+            try (ResultSet columns =
+                         s.executeQuery("PRAGMA table_info(orders)")) {
+
                 while (columns.next()) {
-                    if ("order_time".equalsIgnoreCase(columns.getString("name"))) {
+                    if ("order_time".equalsIgnoreCase(
+                            columns.getString("name"))) {
                         hasOrderTime = true;
                         break;
                     }
                 }
             }
+
             if (!hasOrderTime) {
-                s.execute("ALTER TABLE orders ADD COLUMN order_time TEXT NOT NULL DEFAULT '00:00:00'");
+                s.execute(
+                        "ALTER TABLE orders ADD COLUMN " +
+                                "order_time TEXT NOT NULL DEFAULT '00:00:00'"
+                );
             }
 
             String[] cats = {
                     "Tiffins",
                     "Dosa Items",
-                    "Rice Items",
+                    "Rice Items & Chinese",
                     "Meals",
-                    "Chinese",
+                    "Rotis",
+                    "Sweets & Snacks",
                     "Juice"
             };
 
@@ -97,6 +142,7 @@ public final class Database {
                             "INSERT OR IGNORE INTO categories(name) VALUES(?)"
                     )
             ) {
+
                 for (String n : cats) {
                     p.setString(1, n);
                     p.addBatch();

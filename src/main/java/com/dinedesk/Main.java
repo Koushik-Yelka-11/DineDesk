@@ -20,7 +20,6 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-
         stage = primaryStage;
 
         stage.setMinWidth(1000);
@@ -40,10 +39,18 @@ public class Main extends Application {
                 wasFullScreen = stage.isFullScreen();
             }
 
-            FXMLLoader loader = new FXMLLoader(
-                    Main.class.getResource("/com/dinedesk/view/" + file)
-            );
+            String resourcePath = "/com/dinedesk/view/" + file;
 
+            java.net.URL resource = Main.class.getResource(resourcePath);
+
+            if (resource == null) {
+                throw new IllegalStateException(
+                        "FXML file not found: " + resourcePath
+                                + "\nCheck the filename and location under src/main/resources."
+                );
+            }
+
+            FXMLLoader loader = new FXMLLoader(resource);
             Parent root = loader.load();
 
             // Reuse the existing Scene instead of creating a new one
@@ -92,7 +99,9 @@ public class Main extends Application {
     }
 
     public static void main(String[] args) {
+
         launch(args);
+
     }
     private static void registerKeyboardShortcuts(Scene scene) {
 

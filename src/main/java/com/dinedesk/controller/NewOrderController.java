@@ -6,10 +6,17 @@ import javafx.scene.layout.Region;
 import javafx.print.PrinterJob;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.scene.shape.Rectangle;
+import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -37,7 +44,20 @@ import javafx.scene.layout.Priority;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-
+import javafx.animation.PauseTransition;
+import javafx.application.Platform;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
+import javafx.scene.text.TextAlignment;
+import javafx.util.Duration;
+import javafx.print.PageLayout;
+import javafx.print.Paper;
+import javafx.print.PrintSides;
+import javafx.print.Printer;
+import javafx.print.PrinterAttributes;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.TextFlow;
 public class NewOrderController {
 
     @FXML private VBox sidebar;
@@ -76,15 +96,21 @@ public class NewOrderController {
     private void initialize() {
 
         // Configure the menu grid and make its columns adapt to available width.
+
+// Configure the menu grid
         menuGrid.setHgap(12);
-        menuGrid.setVgap(12);
+        menuGrid.setVgap(10);
         menuGrid.setPrefColumns(3);
-        menuGrid.setPrefTileHeight(210);
+
+// Let each row use the actual card height
+        menuGrid.setPrefTileHeight(-1);
+
         menuGrid.setTileAlignment(Pos.TOP_LEFT);
         menuGrid.setAlignment(Pos.TOP_LEFT);
         menuGrid.setMinWidth(0);
         menuGrid.setMaxWidth(Double.MAX_VALUE);
         menuGrid.setPrefWidth(Region.USE_COMPUTED_SIZE);
+
 
 
         menuGrid.getChildren().clear();
@@ -251,36 +277,67 @@ public class NewOrderController {
     }
 
     private VBox createMenuCard(MenuEntry item) {
-        VBox card = new VBox(9);
-        card.setPrefWidth(190);
-        card.setMinWidth(0);
-        card.setMaxWidth(Double.MAX_VALUE);
-        card.setPadding(new Insets(10));
+
+
+
+        VBox card = new VBox(5);
+        card.setPrefWidth(155);
+        card.setMinWidth(155);
+        card.setMaxWidth(155);
+
+        card.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        card.setMinHeight(Region.USE_COMPUTED_SIZE);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
+
+        card.setPadding(new Insets(8));
+
+
         card.setStyle(
                 "-fx-background-color: white;" +
                         "-fx-border-color: #E5EAF2;" +
                         "-fx-border-radius: 12;" +
                         "-fx-background-radius: 12;");
 
+
+
+        // Image container
         StackPane imageHolder = new StackPane();
-        imageHolder.setPrefSize(168, 105);
-        imageHolder.setMinHeight(105);
-        imageHolder.setMaxHeight(105);
+
+        imageHolder.setPrefSize(120, 75);
+        imageHolder.setMinSize(120, 75);
+        imageHolder.setMaxSize(120, 75);
+
+        imageHolder.setAlignment(Pos.CENTER);
+
         imageHolder.setStyle(
                 "-fx-background-color: #F1F5F9;" +
-                        "-fx-background-radius: 9;");
+                        "-fx-background-radius: 9;"
+        );
 
+// Load food image
         ImageView imageView = createMenuImage(item.name);
+
         if (imageView != null) {
-            imageView.setFitWidth(168);
-            imageView.setFitHeight(105);
+            imageView.setFitWidth(120);
+            imageView.setFitHeight(75);
             imageView.setPreserveRatio(false);
+            imageView.setSmooth(true);
+
+            // Match the imageHolder's rounded corners
+            Rectangle clip = new Rectangle(120, 75);
+            clip.setArcWidth(18);
+            clip.setArcHeight(18);
+
+            imageView.setClip(clip);
+
+            StackPane.setAlignment(imageView, Pos.CENTER);
             imageHolder.getChildren().add(imageView);
         } else {
             Label placeholder = new Label("🍽");
-            placeholder.setStyle("-fx-font-size: 34px;");
+            placeholder.setStyle("-fx-font-size: 28px;");
             imageHolder.getChildren().add(placeholder);
         }
+
 
         Label nameLabel = new Label(item.name);
         nameLabel.setWrapText(true);
@@ -321,6 +378,11 @@ public class NewOrderController {
         HBox.setHgrow(bottomRow.getChildren().get(1), Priority.ALWAYS);
 
         card.getChildren().addAll(imageHolder, nameLabel, bottomRow);
+
+        card.setFillWidth(true);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
+        card.setAlignment(Pos.TOP_CENTER);
+
         return card;
     }
 
@@ -351,25 +413,27 @@ public class NewOrderController {
      * If no matching image exists, the menu card shows a food placeholder.
      */
     private ImageView createMenuImage(String itemName) {
+
         String fileBase = itemName.toLowerCase(Locale.ROOT)
                 .trim()
                 .replaceAll("[^a-z0-9]+", "-")
                 .replaceAll("(^-|-$)", "");
 
-        String[] extensions = { "jpg", "png", "jpeg" };
+        String[] extensions = {"jpg", "png", "jpeg"};
 
         for (String extension : extensions) {
+
             String resourcePath = "/com/dinedesk/images/menu/"
                     + fileBase + "." + extension;
+
             var imageUrl = getClass().getResource(resourcePath);
 
             if (imageUrl != null) {
-                Image image = new Image(imageUrl.toExternalForm(), 168, 105, true, true);
+                Image image = new Image(imageUrl.toExternalForm());
+
                 ImageView imageView = new ImageView(image);
-                imageView.setFitWidth(168);
-                imageView.setFitHeight(105);
-                imageView.setPreserveRatio(false);
                 imageView.setSmooth(true);
+
                 return imageView;
             }
         }
@@ -488,197 +552,708 @@ public class NewOrderController {
 
     @FXML
     private void saveOrder() {
-        // If a previous order was saved but could not be printed, retry that
-        // receipt first. Never create a duplicate order on a print retry.
-        if (pendingReceipt != null) {
-            printPendingReceipt();
+
+        // 1. Check whether the cart is empty
+        if (cartItems == null || cartItems.isEmpty()) {
+            showToast(
+                    "Order not saved! \nPlease select at least one item before printing.",
+                    false
+            );
             return;
         }
 
-        if (cartItems.isEmpty()) {
-            showInfo("Add at least one item before printing the bill.");
+// 2. Check printer availability
+        PrinterJob printerJob = PrinterJob.createPrinterJob();
+
+        if (printerJob == null) {
+            showToast(
+                    "Order not saved! \nNo printer available. Check your printer connection.",
+                    false
+            );
             return;
         }
 
-        // Snapshot the cart before saving so the receipt cannot change if the UI changes.
+        // STEP 3: Take a snapshot of the cart.
         List<CartEntry> receiptItems = new ArrayList<>();
+
         for (CartEntry item : cartItems) {
             receiptItems.add(new CartEntry(
-                    item.menuItemId, item.name, item.price, item.quantity));
+                    item.menuItemId,
+                    item.name,
+                    item.price,
+                    item.quantity
+            ));
         }
 
+        // STEP 4: Prepare date, time and total.
         String date = LocalDate.now().toString();
+
         LocalTime now = LocalTime.now();
-        String time = now.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+        String time = now.format(
+                DateTimeFormatter.ofPattern("HH:mm:ss")
+        );
+
         String displayDate = LocalDate.parse(date)
                 .format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-        String displayTime = now.format(DateTimeFormatter.ofPattern("hh:mm a"));
 
-        String insertOrder = """
-                INSERT INTO orders
-                    (order_date, order_time, token_number, total_bill)
-                VALUES (?, ?, ?, ?)
-                """;
-        String insertItem = """
-                INSERT INTO order_items(order_id, menu_item_id, quantity, price)
-                VALUES (?, ?, ?, ?)
-                """;
+        String displayTime = now.format(
+                DateTimeFormatter.ofPattern("hh:mm a")
+        );
 
         double total = receiptItems.stream()
                 .mapToDouble(CartEntry::getLineTotal)
                 .sum();
 
+        String insertOrder = """
+            INSERT INTO orders
+                (order_date, order_time, token_number, total_bill)
+            VALUES (?, ?, ?, ?)
+            """;
+
+        String insertItem = """
+            INSERT INTO order_items
+                (order_id, menu_item_id, quantity, price)
+            VALUES (?, ?, ?, ?)
+            """;
+
+        // STEP 5: Start a database transaction.
+        // Nothing is permanently saved until printing succeeds.
         try (Connection connection = Database.connect()) {
+
             connection.setAutoCommit(false);
 
             try {
+
+                // Generate the next daily token.
                 int token;
-                try (PreparedStatement tokenQuery = connection.prepareStatement(
-                        "SELECT COALESCE(MAX(token_number), 0) + 1 "
-                                + "FROM orders WHERE order_date = ?")) {
+
+                try (PreparedStatement tokenQuery =
+                             connection.prepareStatement(
+                                     """
+                                     SELECT COALESCE(MAX(token_number), 0) + 1
+                                     FROM orders
+                                     WHERE order_date = ?
+                                     """
+                             )) {
+
                     tokenQuery.setString(1, date);
+
                     try (ResultSet result = tokenQuery.executeQuery()) {
                         result.next();
                         token = result.getInt(1);
                     }
                 }
 
+                // Insert the order inside the uncommitted transaction.
                 int orderId;
-                try (PreparedStatement orderStatement = connection.prepareStatement(
-                        insertOrder, Statement.RETURN_GENERATED_KEYS)) {
+
+                try (PreparedStatement orderStatement =
+                             connection.prepareStatement(
+                                     insertOrder,
+                                     Statement.RETURN_GENERATED_KEYS
+                             )) {
+
                     orderStatement.setString(1, date);
                     orderStatement.setString(2, time);
                     orderStatement.setInt(3, token);
                     orderStatement.setDouble(4, total);
+
                     orderStatement.executeUpdate();
 
-                    try (ResultSet keys = orderStatement.getGeneratedKeys()) {
+                    try (ResultSet keys =
+                                 orderStatement.getGeneratedKeys()) {
+
                         if (!keys.next()) {
                             throw new java.sql.SQLException(
-                                    "Could not retrieve the saved order ID.");
+                                    "Could not retrieve the order ID."
+                            );
                         }
+
                         orderId = keys.getInt(1);
                     }
                 }
 
+                // Insert order items inside the same transaction.
                 try (PreparedStatement itemStatement =
                              connection.prepareStatement(insertItem)) {
+
                     for (CartEntry item : receiptItems) {
+
                         itemStatement.setInt(1, orderId);
                         itemStatement.setInt(2, item.menuItemId);
                         itemStatement.setInt(3, item.quantity);
                         itemStatement.setDouble(4, item.price);
+
                         itemStatement.addBatch();
                     }
+
                     itemStatement.executeBatch();
                 }
 
+                // Build the receipt using the generated order details.
+                String receipt = buildReceipt(
+                        orderId,
+                        token,
+                        displayDate,
+                        displayTime,
+                        receiptItems,
+                        total
+                );
+
+                // STEP 6: Attempt printing BEFORE committing the transaction.
+                boolean printed = printReceipt(receipt);
+
+                if (!printed) {
+
+                    // Printing failed: discard the uncommitted order.
+                    connection.rollback();
+
+                    // Keep all cart items so the customer can retry.
+                    pendingReceipt = null;
+
+                    showToast(
+                            "Bill was not printed. The order was not saved.",
+                            false
+                    );
+
+                    return;
+                }
+
+                // STEP 7: Printing succeeded. Now permanently save the order.
                 connection.commit();
 
-                pendingReceipt = buildReceipt(
-                        orderId, token, displayDate, displayTime, receiptItems, total);
+                // STEP 8: Clear the cart only after successful printing
+                // and successful database commit.
+                pendingReceipt = null;
 
-                // Clear the submitted cart after the database commit. If printing
-                // fails, pendingReceipt remains available for a safe retry while a
-                // new customer can start a separate order.
                 cartItems.clear();
+
+                cartListView.refresh();
+
                 updateTotals();
 
-                // The order is committed before printing. A printer error must not
-                // roll back or duplicate this order.
-                printPendingReceipt();
+                showToast(
+                        "Bill printed and order saved successfully!",
+                        true
+                );
 
             } catch (Exception exception) {
-                connection.rollback();
+
+                // Roll back the order if an error occurs before commit.
+                try {
+                    connection.rollback();
+                } catch (Exception rollbackException) {
+                    exception.addSuppressed(rollbackException);
+                }
+
                 throw exception;
+
             } finally {
                 connection.setAutoCommit(true);
             }
 
         } catch (Exception exception) {
-            showError("Could not save order", exception);
+            showError("Could not process order", exception);
         }
     }
+
+
 
     private String buildReceipt(int orderId, int token, String date, String time,
                                 List<CartEntry> items, double total) {
+
+        final int width = 33;
+        final int itemWidth = 22;
+
         StringBuilder receipt = new StringBuilder();
-        final int width = 32;
-        receipt.append(center("UDUPIDESK", width)).append('\n');
-        receipt.append(center("Restaurant Billing", width)).append('\n');
-        receipt.append("--------------------------------\n");
-        receipt.append(String.format(Locale.US, "Bill No : %d%n", orderId));
+
+        String separator = "-".repeat(width);
+
+        receipt.append("SRI RAGHAVENDRA UDIPI\n");
+        receipt.append(center("Flat No. 4, D. Pochampally, near Gandimaisamma, Hyderabad, Telangana-500043", width)).append('\n');
+        receipt.append(center("Mobile no. 9949698078", width)).append('\n');
+        receipt.append(separator).append('\n');
         receipt.append(String.format(Locale.US, "Token   : %03d%n", token));
         receipt.append("Date    : ").append(date).append('\n');
         receipt.append("Time    : ").append(time).append('\n');
-        receipt.append("--------------------------------\n");
-        receipt.append(String.format(Locale.US, "%-15s %3s %10s%n", "Item", "Qty", "Amount"));
-        receipt.append("--------------------------------\n");
+
+        receipt.append(separator).append('\n');
+
+        receipt.append(String.format(
+                Locale.US, "%-22s %4s %10s%n",
+                "Item", "Qty", "Amount"
+        ));
+
+        receipt.append(separator).append('\n');
 
         for (CartEntry item : items) {
+
             String itemName = item.name;
-            // Wrap long item names so the receipt remains readable on narrow paper.
-            while (itemName.length() > 15) {
-                receipt.append(itemName, 0, 15).append('\n');
-                itemName = itemName.substring(15);
+            int quantity = item.quantity;
+            double amount = item.getLineTotal();
+
+            // Print the first 22 characters with quantity and amount.
+            String firstLine = itemName.length() > itemWidth
+                    ? itemName.substring(0, itemWidth)
+                    : itemName;
+
+            receipt.append(String.format(
+                    Locale.US,
+                    "%-22s %4d %10.2f%n",
+                    firstLine,
+                    quantity,
+                    amount
+            ));
+
+            // Print remaining item name characters on separate lines.
+            if (itemName.length() > itemWidth) {
+                String remaining = itemName.substring(itemWidth);
+
+                while (!remaining.isEmpty()) {
+                    int end = Math.min(itemWidth, remaining.length());
+
+                    receipt.append("  ")
+                            .append(remaining, 0, end)
+                            .append('\n');
+
+                    remaining = remaining.substring(end);
+                }
             }
-            receipt.append(String.format(Locale.US, "%-15s %3d %10.2f%n",
-                    itemName, item.quantity, item.getLineTotal()));
         }
 
-        receipt.append("--------------------------------\n");
-        receipt.append(String.format(Locale.US, "Subtotal:%22.2f%n", total));
-        receipt.append(String.format(Locale.US, "TOTAL:%25.2f%n", total));
-        receipt.append("--------------------------------\n");
+        receipt.append(separator).append('\n');
+
+        receipt.append(String.format(
+                Locale.US, "%-7s%14.2f%n", "Total:", total
+        ));
+
+        receipt.append(separator).append('\n');
+
         receipt.append(center("Thank you! Visit Again.", width)).append('\n');
-        receipt.append(center("Powered by UdupiDesk", width)).append('\n');
-        receipt.append("\n\n");
+
+        receipt.append("\n\n\n\n");
+
         return receipt.toString();
     }
+
+
 
     private String center(String value, int width) {
         if (value.length() >= width) return value;
         int leftPadding = (width - value.length()) / 2;
         return " ".repeat(leftPadding) + value;
     }
-
     private void printPendingReceipt() {
-        if (pendingReceipt == null) return;
 
-        PrinterJob job = PrinterJob.createPrinterJob();
-        if (job == null) {
-            showInfo("The order is saved, but no printer is available. "
-                    + "Connect or configure a printer, then click Print Bill to retry.");
+        if (pendingReceipt == null || pendingReceipt.isBlank()) {
+            showToast(
+                    "Please select at least one item before printing the bill.",
+                    false
+            );
             return;
         }
 
-        Text receiptText = new Text(pendingReceipt);
-        receiptText.setFont(Font.font("Monospaced", 9));
-        receiptText.setWrappingWidth(250);
-
-        boolean printed;
-        try {
-            printed = job.printPage(receiptText);
-            if (printed) {
-                printed = job.endJob();
-            } else {
-                job.cancelJob();
-            }
-        } catch (Exception exception) {
-            job.cancelJob();
-            printed = false;
-            exception.printStackTrace();
-        }
+        boolean printed = printReceipt(pendingReceipt);
 
         if (printed) {
             pendingReceipt = null;
-            showInfo("Bill sent to the printer successfully.");
-        } else {
-            showInfo("The order has been saved, but printing failed.\n\n"
-                    + "Check that the printer is connected, powered on, and configured "
-                    + "as your computer's default printer. Click Print Bill again to retry "
-                    + "the same saved bill without creating a duplicate order.");
+            showToast("Bill printed successfully!", true);
         }
+    }
+
+
+
+    private boolean printReceipt(String receipt) {
+
+        if (receipt == null || receipt.isBlank()) {
+            return false;
+        }
+
+        PrinterJob job = PrinterJob.createPrinterJob();
+
+        if (job == null) {
+            showToast(
+                    "No printer available. Check your printer connection.",
+                    false
+            );
+            return false;
+        }
+
+        try {
+
+            Printer printer = job.getPrinter();
+
+            PageLayout defaultLayout = printer.getDefaultPageLayout();
+
+            PageLayout layout = printer.createPageLayout(
+                    defaultLayout.getPaper(),
+                    defaultLayout.getPageOrientation(),
+                    Printer.MarginType.HARDWARE_MINIMUM
+            );
+
+            double paperWidthMm =
+                    defaultLayout.getPaper().getWidth() * 25.4 / 72.0;
+
+            double printableWidth = layout.getPrintableWidth();
+            double printableHeight = layout.getPrintableHeight();
+
+            System.out.println("Printer: " + printer.getName());
+            System.out.println("Paper width: " + paperWidthMm + " mm");
+
+            if (paperWidthMm < 65 || paperWidthMm > 85) {
+                job.cancelJob();
+                showToast(
+                        "Please configure 80 mm receipt paper in printer settings.",
+                        false
+                );
+                return false;
+            }
+
+            if (printableWidth <= 0 || printableHeight <= 0) {
+                job.cancelJob();
+                showToast("Invalid printer page dimensions.", false);
+                return false;
+            }
+
+            // Create a receipt with independently formatted text.
+            TextFlow receiptFlow = new TextFlow();
+
+            receiptFlow.setTextAlignment(TextAlignment.LEFT);
+            receiptFlow.setLineSpacing(2);
+            receiptFlow.setPrefWidth(printableWidth);
+            receiptFlow.setMinWidth(printableWidth);
+            receiptFlow.setMaxWidth(printableWidth);
+
+            String[] lines = receipt.split("\\R", -1);
+
+            boolean itemHeaderSeen = false;
+            boolean itemSection = false;
+
+            for (int i = 0; i < lines.length; i++) {
+
+                String line = lines[i];
+
+                Text text = new Text(line + "\n");
+
+                // Restaurant name: large and bold.
+                if (i == 0) {
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.EXTRA_BOLD,
+                            16
+                    ));
+                }
+
+                // Restaurant address.
+                else if (line.trim().startsWith("Flat")) {
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            7
+                    ));
+                }
+
+                // Item table heading.
+                else if (line.trim().startsWith("Item")) {
+
+                    itemHeaderSeen = true;
+
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.BOLD,
+                            8
+                    ));
+                }
+
+// Detect the separators surrounding the item rows.
+                else if (itemHeaderSeen && line.trim().matches("-+")) {
+
+                    if (!itemSection) {
+                        itemSection = true;
+                    } else {
+                        itemSection = false;
+                        itemHeaderSeen = false;
+                    }
+
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            10
+                    ));
+                }
+
+// Only menu item rows get the smaller font.
+                else if (itemSection) {
+
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            8
+                    ));
+                }
+
+                // Total amount: larger and bold.
+                else if (line.trim().startsWith("Total:")){
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            15
+                    ));
+                }
+
+                // Footer.
+                else if (line.contains("Thank you!")
+                        || line.contains("Powered by")) {
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            10
+                    ));
+                }
+
+                // All remaining receipt details.
+                else {
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            10
+                    ));
+                }
+
+                text.setFill(javafx.scene.paint.Color.BLACK);
+
+                receiptFlow.getChildren().add(text);
+            }
+
+            // Prepare layout before measuring.
+            receiptFlow.applyCss();
+            receiptFlow.autosize();
+            receiptFlow.layout();
+
+            double receiptHeight =
+                    receiptFlow.getLayoutBounds().getHeight();
+
+            System.out.println(
+                    "Receipt height: "
+                            + receiptHeight * 25.4 / 72.0
+                            + " mm"
+            );
+
+            job.getJobSettings().setPageLayout(layout);
+
+            if (receiptHeight > printableHeight) {
+                job.cancelJob();
+
+                showToast(
+                        "Receipt exceeds configured paper length. "
+                                + "Increase the receipt paper length "
+                                + "in Windows printer preferences.",
+                        false
+                );
+                return false;
+            }
+
+            // Print the formatted receipt.
+            boolean pagePrinted = job.printPage(layout, receiptFlow);
+
+            if (!pagePrinted) {
+                job.cancelJob();
+                showToast("Printing failed. Please check your printer.", false);
+                return false;
+            }
+
+            boolean completed = job.endJob();
+
+            if (!completed) {
+                showToast(
+                        "Printer could not complete the receipt.",
+                        false
+                );
+                return false;
+            }
+
+            return true;
+
+        } catch (Exception exception) {
+
+            exception.printStackTrace();
+
+            try {
+                job.cancelJob();
+            } catch (Exception ignored) {
+                // Ignore cancellation errors.
+            }
+
+            showToast(
+                    "Printing failed. Please check your printer.",
+                    false
+            );
+
+            return false;
+        }
+    }
+
+
+    private void showToast(String message, boolean success) {
+
+        if (sidebar == null || sidebar.getScene() == null) {
+            return;
+        }
+
+        javafx.scene.Scene scene = sidebar.getScene();
+        javafx.scene.Parent currentRoot = scene.getRoot();
+
+        StackPane overlayRoot;
+
+        if (currentRoot instanceof StackPane
+                && Boolean.TRUE.equals(
+                currentRoot.getProperties().get("dinedesk-toast-root"))) {
+
+            overlayRoot = (StackPane) currentRoot;
+
+        } else {
+
+            overlayRoot = new StackPane();
+            overlayRoot.getStyleClass().add("toast-overlay-root");
+            overlayRoot.getChildren().add(currentRoot);
+            overlayRoot.getProperties().put("dinedesk-toast-root", true);
+
+            scene.setRoot(overlayRoot);
+        }
+
+        // Remove an existing toast before showing another.
+        overlayRoot.getChildren().removeIf(node ->
+                node.getStyleClass().contains("toast-message"));
+
+        Label toast = new Label(message);
+        toast.getStyleClass().add("toast-message");
+        toast.getStyleClass().add(
+                success ? "toast-success" : "toast-error"
+        );
+
+        toast.setWrapText(true);
+        toast.setMaxWidth(560);
+        toast.setMouseTransparent(true);
+
+        StackPane.setAlignment(toast, Pos.TOP_CENTER);
+        StackPane.setMargin(toast, new Insets(24, 20, 0, 20));
+
+        overlayRoot.getChildren().add(toast);
+
+        javafx.animation.PauseTransition timer =
+                new javafx.animation.PauseTransition(
+                        javafx.util.Duration.seconds(2)
+                );
+
+        timer.setOnFinished(event ->
+                overlayRoot.getChildren().remove(toast));
+
+        timer.play();
+    }
+
+    private void openReceiptPdf(Path pdf) {
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(pdf.toFile());
+            } else {
+                System.out.println(
+                        "Open this PDF manually: " + pdf.toAbsolutePath()
+                );
+            }
+        } catch (Exception exception) {
+            System.err.println("Could not open receipt PDF.");
+            System.err.println("PDF location: " + pdf.toAbsolutePath());
+            exception.printStackTrace();
+        }
+    }
+
+    /** Creates a compact, dependency-free thermal-style PDF receipt. */
+    private Path createReceiptPdf(String receipt) throws IOException {
+        Path folder = Paths.get("Bills");
+        Files.createDirectories(folder);
+
+        int billNo = 0;
+        int tokenNo = 0;
+        for (String line : receipt.split("\\R")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("Bill No")) billNo = parseNumberAfterColon(trimmed);
+            if (trimmed.startsWith("Token")) tokenNo = parseNumberAfterColon(trimmed);
+        }
+        String filename = String.format(Locale.ROOT, "Bill_%05d_Token_%03d.pdf", billNo, tokenNo);
+        Path output = folder.resolve(filename);
+
+        // PDF standard fonts are used so the receipt needs no extra font files.
+        // Replace the rupee glyph with Rs. for compatibility with built-in Helvetica.
+        String[] lines = receipt.replace("₹", "Rs.").split("\\R", -1);
+        float pageWidth = 226f; // approximately 80 mm
+        float topMargin = 18f;
+        float lineHeight = 12f;
+        float pageHeight = Math.max(180f, topMargin * 2 + lines.length * lineHeight);
+
+        StringBuilder content = new StringBuilder("BT\n/F1 8 Tf\n");
+        float y = pageHeight - topMargin;
+        for (String line : lines) {
+            String safe = line.replace("\t", "    ");
+            if (safe.length() > 34) {
+                for (int start = 0; start < safe.length(); start += 34) {
+                    String part = safe.substring(start, Math.min(start + 34, safe.length()));
+                    content.append("1 0 0 1 8 ").append(y).append(" Tm (")
+                            .append(escapePdf(part)).append(") Tj\n");
+                    y -= lineHeight;
+                }
+            } else {
+                content.append("1 0 0 1 8 ").append(y).append(" Tm (")
+                        .append(escapePdf(safe)).append(") Tj\n");
+                y -= lineHeight;
+            }
+        }
+        content.append("ET\n");
+
+        byte[] stream = content.toString().getBytes(StandardCharsets.US_ASCII);
+        String[] objects = new String[] {
+                "<< /Type /Catalog /Pages 2 0 R >>",
+                "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pageWidth + " " + pageHeight + "] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>",
+                "<< /Length " + stream.length + " >>\nstream\n" + content + "endstream"
+        };
+
+        try (var out = Files.newOutputStream(output)) {
+            java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+            buffer.write("%PDF-1.4\n".getBytes(StandardCharsets.US_ASCII));
+            java.util.List<Integer> offsets = new java.util.ArrayList<>();
+            offsets.add(0);
+            for (int i = 0; i < objects.length; i++) {
+                offsets.add(buffer.size());
+                buffer.write((i + 1 + " 0 obj\n").getBytes(StandardCharsets.US_ASCII));
+                buffer.write(objects[i].getBytes(StandardCharsets.US_ASCII));
+                buffer.write("\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+            }
+            int xrefOffset = buffer.size();
+            buffer.write(("xref\n0 " + (objects.length + 1) + "\n0000000000 65535 f \n")
+                    .getBytes(StandardCharsets.US_ASCII));
+            for (int i = 1; i < offsets.size(); i++) {
+                buffer.write(String.format(Locale.ROOT, "%010d 00000 n \n", offsets.get(i))
+                        .getBytes(StandardCharsets.US_ASCII));
+            }
+            buffer.write(("trailer\n<< /Size " + (objects.length + 1) + " /Root 1 0 R >>\nstartxref\n"
+                    + xrefOffset + "\n%%EOF\n").getBytes(StandardCharsets.US_ASCII));
+            buffer.writeTo(out);
+        }
+        return output;
+    }
+
+    private int parseNumberAfterColon(String line) {
+        try {
+            return Integer.parseInt(line.substring(line.indexOf(':') + 1).trim());
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
+    private String escapePdf(String value) {
+        return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+                .replaceAll("[^\\x20-\\x7E]", "?");
     }
 
     private void showInfo(String message) {
