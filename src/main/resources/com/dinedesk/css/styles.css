@@ -549,3 +549,219 @@
     -fx-background-radius: 10px;
     -fx-padding: 12px;
 }
+/* Date header background */
+.titled-pane > .title {
+    -fx-background-color: #FFFFFF;
+    -fx-background-insets: 0;
+    -fx-background-radius: 8px;
+    -fx-border-color: #DCE6F1;
+    -fx-border-radius: 8px;
+}
+
+/* Date header text */
+.titled-pane > .title > .text {
+    -fx-fill: #334155;
+}
+
+/* Expand/collapse arrow */
+/* Remove focus highlight */
+.titled-pane {
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+/* White date header */
+.titled-pane > .title {
+    -fx-background-color: #FFFFFF;
+    -fx-background-insets: 0;
+    -fx-border-color: #DCE6F1;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+
+/* Hover effect */
+.titled-pane > .title:hover {
+    -fx-background-color: #F7F9FC;
+}
+/* =========================================
+   ORDERS HISTORY - SCROLL PANE
+   ========================================= */
+
+.orders-scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.orders-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.orders-scroll-pane > .corner {
+    -fx-background-color: transparent;
+}
+
+
+/* =========================================
+   ORDERS CONTAINER
+   ========================================= */
+
+.orders-container {
+    -fx-background-color: transparent;
+    -fx-padding: 4px 2px 8px 2px;
+    -fx-spacing: 12px;
+}
+/* Menu page: category groups styled like the Orders History cards */
+.menu-category-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.menu-category-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.menu-category-container {
+    -fx-background-color: transparent;
+    -fx-padding: 2 5 8 2;
+}
+
+.menu-category-pane {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #DCE6F1;
+    -fx-border-width: 1;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 0;
+}
+
+.menu-category-pane > .title {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 10 10 0 0;
+    -fx-border-color: transparent;
+    -fx-padding: 13 14 13 12;
+}
+
+.menu-category-pane > .title > .arrow-button {
+    -fx-padding: 0 7 0 0;
+}
+
+.menu-category-pane > .title > .arrow-button > .arrow {
+    -fx-background-color: #64748B;
+}
+
+.menu-category-pane > .content {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 0 0 10 10;
+    -fx-border-color: #E8EEF5 transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 10;
+}
+
+.menu-category-heading {
+    -fx-background-color: transparent;
+    -fx-spacing: 10;
+}
+
+.menu-category-title {
+    -fx-text-fill: #1E293B;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.menu-category-count {
+    -fx-text-fill: #64748B;
+    -fx-font-size: 11px;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #DCE6F1;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 3 9 3 9;
+}
+
+.menu-category-content {
+    -fx-background-color: #FFFFFF;
+    -fx-padding: 0;
+}
+
+.menu-category-table {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #E5EAF1;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-padding: 0;
+}
+
+.menu-category-table .column-header-background {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 7 7 0 0;
+}
+
+.menu-category-table .column-header,
+.menu-category-table .filler {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent transparent #E5EAF1 transparent;
+    -fx-size: 34px;
+}
+
+.menu-category-table .column-header .label {
+    -fx-text-fill: #64748B;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.menu-category-table .table-row-cell {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent transparent #EEF2F7 transparent;
+    -fx-cell-size: 38px;
+}
+
+.menu-category-table .table-row-cell:odd,
+.menu-category-table .table-row-cell:even {
+    -fx-background-color: #FFFFFF;
+}
+
+.menu-category-table .table-row-cell:selected {
+    -fx-background-color: #EFF6FF;
+}
+
+.menu-category-table .table-row-cell:selected .text {
+    -fx-fill: #1D4ED8;
+}
+
+.menu-category-table .table-cell {
+    -fx-text-fill: #334155;
+    -fx-font-size: 12px;
+    -fx-padding: 8 12 8 12;
+    -fx-border-color: transparent;
+}
+
+.menu-category-table .placeholder .label {
+    -fx-text-fill: #94A3B8;
+    -fx-font-size: 12px;
+}
+/* Trash icon beside each menu item */
+.menu-item-delete-button {
+    -fx-background-color: #FFF1F2;
+    -fx-text-fill: #DC2626;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+    -fx-padding: 4px 7px;
+    -fx-min-width: 30px;
+    -fx-pref-width: 30px;
+    -fx-min-height: 27px;
+    -fx-pref-height: 27px;
+}
+
+.menu-item-delete-button:hover {
+    -fx-background-color: #FEE2E2;
+}
+
+.menu-item-delete-button:pressed {
+    -fx-background-color: #FECACA;
+}

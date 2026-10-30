@@ -161,11 +161,12 @@
 
                         <content>
                             <TilePane fx:id="menuGrid"
-                                      hgap="12"
-                                      vgap="12"
+                                      hgap="12.0"
+                                      vgap="10.0"
                                       prefColumns="3"
-                                      prefTileWidth="190"
-                                      prefTileHeight="210"
+                                      prefTileWidth="155.0"
+                                      prefTileHeight="-1.0"
+
                                       alignment="TOP_LEFT"
                                       style="-fx-background-color: transparent;
                          -fx-padding: 4;"/>

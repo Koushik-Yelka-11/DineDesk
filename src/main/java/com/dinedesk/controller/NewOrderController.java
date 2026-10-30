@@ -6,10 +6,17 @@ import javafx.scene.layout.Region;
 import javafx.print.PrinterJob;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.scene.shape.Rectangle;
+import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -76,15 +83,21 @@ public class NewOrderController {
     private void initialize() {
 
         // Configure the menu grid and make its columns adapt to available width.
+
+// Configure the menu grid
         menuGrid.setHgap(12);
-        menuGrid.setVgap(12);
+        menuGrid.setVgap(10);
         menuGrid.setPrefColumns(3);
-        menuGrid.setPrefTileHeight(210);
+
+// Let each row use the actual card height
+        menuGrid.setPrefTileHeight(-1);
+
         menuGrid.setTileAlignment(Pos.TOP_LEFT);
         menuGrid.setAlignment(Pos.TOP_LEFT);
         menuGrid.setMinWidth(0);
         menuGrid.setMaxWidth(Double.MAX_VALUE);
         menuGrid.setPrefWidth(Region.USE_COMPUTED_SIZE);
+
 
 
         menuGrid.getChildren().clear();
@@ -251,36 +264,67 @@ public class NewOrderController {
     }
 
     private VBox createMenuCard(MenuEntry item) {
-        VBox card = new VBox(9);
-        card.setPrefWidth(190);
-        card.setMinWidth(0);
-        card.setMaxWidth(Double.MAX_VALUE);
-        card.setPadding(new Insets(10));
+
+
+
+        VBox card = new VBox(5);
+        card.setPrefWidth(155);
+        card.setMinWidth(155);
+        card.setMaxWidth(155);
+
+        card.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        card.setMinHeight(Region.USE_COMPUTED_SIZE);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
+
+        card.setPadding(new Insets(8));
+
+
         card.setStyle(
                 "-fx-background-color: white;" +
                         "-fx-border-color: #E5EAF2;" +
                         "-fx-border-radius: 12;" +
                         "-fx-background-radius: 12;");
 
+
+
+        // Image container
         StackPane imageHolder = new StackPane();
-        imageHolder.setPrefSize(168, 105);
-        imageHolder.setMinHeight(105);
-        imageHolder.setMaxHeight(105);
+
+        imageHolder.setPrefSize(120, 75);
+        imageHolder.setMinSize(120, 75);
+        imageHolder.setMaxSize(120, 75);
+
+        imageHolder.setAlignment(Pos.CENTER);
+
         imageHolder.setStyle(
                 "-fx-background-color: #F1F5F9;" +
-                        "-fx-background-radius: 9;");
+                        "-fx-background-radius: 9;"
+        );
 
+// Load food image
         ImageView imageView = createMenuImage(item.name);
+
         if (imageView != null) {
-            imageView.setFitWidth(168);
-            imageView.setFitHeight(105);
+            imageView.setFitWidth(120);
+            imageView.setFitHeight(75);
             imageView.setPreserveRatio(false);
+            imageView.setSmooth(true);
+
+            // Match the imageHolder's rounded corners
+            Rectangle clip = new Rectangle(120, 75);
+            clip.setArcWidth(18);
+            clip.setArcHeight(18);
+
+            imageView.setClip(clip);
+
+            StackPane.setAlignment(imageView, Pos.CENTER);
             imageHolder.getChildren().add(imageView);
         } else {
             Label placeholder = new Label("🍽");
-            placeholder.setStyle("-fx-font-size: 34px;");
+            placeholder.setStyle("-fx-font-size: 28px;");
             imageHolder.getChildren().add(placeholder);
         }
+
 
         Label nameLabel = new Label(item.name);
         nameLabel.setWrapText(true);
@@ -321,6 +365,11 @@ public class NewOrderController {
         HBox.setHgrow(bottomRow.getChildren().get(1), Priority.ALWAYS);
 
         card.getChildren().addAll(imageHolder, nameLabel, bottomRow);
+
+        card.setFillWidth(true);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
+        card.setAlignment(Pos.TOP_CENTER);
+
         return card;
     }
 
@@ -351,25 +400,27 @@ public class NewOrderController {
      * If no matching image exists, the menu card shows a food placeholder.
      */
     private ImageView createMenuImage(String itemName) {
+
         String fileBase = itemName.toLowerCase(Locale.ROOT)
                 .trim()
                 .replaceAll("[^a-z0-9]+", "-")
                 .replaceAll("(^-|-$)", "");
 
-        String[] extensions = { "jpg", "png", "jpeg" };
+        String[] extensions = {"jpg", "png", "jpeg"};
 
         for (String extension : extensions) {
+
             String resourcePath = "/com/dinedesk/images/menu/"
                     + fileBase + "." + extension;
+
             var imageUrl = getClass().getResource(resourcePath);
 
             if (imageUrl != null) {
-                Image image = new Image(imageUrl.toExternalForm(), 168, 105, true, true);
+                Image image = new Image(imageUrl.toExternalForm());
+
                 ImageView imageView = new ImageView(image);
-                imageView.setFitWidth(168);
-                imageView.setFitHeight(105);
-                imageView.setPreserveRatio(false);
                 imageView.setSmooth(true);
+
                 return imageView;
             }
         }
@@ -642,13 +693,43 @@ public class NewOrderController {
         return " ".repeat(leftPadding) + value;
     }
 
-    private void printPendingReceipt() {
-        if (pendingReceipt == null) return;
 
+    private void printPendingReceipt() {
+        if (pendingReceipt == null) {
+            return;
+        }
+
+        Path pdf;
+
+        // STEP 1: Always generate and save the PDF first.
+        try {
+            pdf = createReceiptPdf(pendingReceipt);
+
+            System.out.println("====================================");
+            System.out.println("DineDesk receipt PDF generated:");
+            System.out.println(pdf.toAbsolutePath());
+            System.out.println("File exists: " + Files.exists(pdf));
+            System.out.println("====================================");
+
+        } catch (Exception exception) {
+            showError("Could not generate receipt PDF", exception);
+            return;
+        }
+
+        // STEP 2: Attempt to print using the computer's configured printer.
         PrinterJob job = PrinterJob.createPrinterJob();
+
         if (job == null) {
-            showInfo("The order is saved, but no printer is available. "
-                    + "Connect or configure a printer, then click Print Bill to retry.");
+            openReceiptPdf(pdf);
+
+            showInfo(
+                    "The order has been saved, but no printer is available.\n\n"
+                            + "Your bill has been saved as a PDF at:\n"
+                            + pdf.toAbsolutePath()
+                            + "\n\nConnect a printer to print the bill."
+            );
+
+            // Keep pendingReceipt so printing can be retried later.
             return;
         }
 
@@ -656,29 +737,156 @@ public class NewOrderController {
         receiptText.setFont(Font.font("Monospaced", 9));
         receiptText.setWrappingWidth(250);
 
-        boolean printed;
+        boolean printed = false;
+
         try {
             printed = job.printPage(receiptText);
+
             if (printed) {
                 printed = job.endJob();
             } else {
                 job.cancelJob();
             }
+
         } catch (Exception exception) {
-            job.cancelJob();
-            printed = false;
             exception.printStackTrace();
+
+            try {
+                job.cancelJob();
+            } catch (Exception ignored) {
+                // The print job may already have ended.
+            }
+
+            printed = false;
         }
 
+        // STEP 3: Handle the result.
         if (printed) {
             pendingReceipt = null;
-            showInfo("Bill sent to the printer successfully.");
+
+            showInfo(
+                    "Bill printed successfully!\n\n"
+                            + "PDF copy saved at:\n"
+                            + pdf.toAbsolutePath()
+            );
+
         } else {
-            showInfo("The order has been saved, but printing failed.\n\n"
-                    + "Check that the printer is connected, powered on, and configured "
-                    + "as your computer's default printer. Click Print Bill again to retry "
-                    + "the same saved bill without creating a duplicate order.");
+            openReceiptPdf(pdf);
+
+            showInfo(
+                    "The order has been saved, but printing failed.\n\n"
+                            + "Your PDF bill is available at:\n"
+                            + pdf.toAbsolutePath()
+                            + "\n\nCheck your printer connection and try printing again."
+            );
+
+            // Keep pendingReceipt so a retry will not create a duplicate order.
         }
+    }
+
+    private void openReceiptPdf(Path pdf) {
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(pdf.toFile());
+            } else {
+                System.out.println(
+                        "Open this PDF manually: " + pdf.toAbsolutePath()
+                );
+            }
+        } catch (Exception exception) {
+            System.err.println("Could not open receipt PDF.");
+            System.err.println("PDF location: " + pdf.toAbsolutePath());
+            exception.printStackTrace();
+        }
+    }
+
+    /** Creates a compact, dependency-free thermal-style PDF receipt. */
+    private Path createReceiptPdf(String receipt) throws IOException {
+        Path folder = Paths.get("Bills");
+        Files.createDirectories(folder);
+
+        int billNo = 0;
+        int tokenNo = 0;
+        for (String line : receipt.split("\\R")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("Bill No")) billNo = parseNumberAfterColon(trimmed);
+            if (trimmed.startsWith("Token")) tokenNo = parseNumberAfterColon(trimmed);
+        }
+        String filename = String.format(Locale.ROOT, "Bill_%05d_Token_%03d.pdf", billNo, tokenNo);
+        Path output = folder.resolve(filename);
+
+        // PDF standard fonts are used so the receipt needs no extra font files.
+        // Replace the rupee glyph with Rs. for compatibility with built-in Helvetica.
+        String[] lines = receipt.replace("₹", "Rs.").split("\\R", -1);
+        float pageWidth = 226f; // approximately 80 mm
+        float topMargin = 18f;
+        float lineHeight = 12f;
+        float pageHeight = Math.max(180f, topMargin * 2 + lines.length * lineHeight);
+
+        StringBuilder content = new StringBuilder("BT\n/F1 8 Tf\n");
+        float y = pageHeight - topMargin;
+        for (String line : lines) {
+            String safe = line.replace("\t", "    ");
+            if (safe.length() > 34) {
+                for (int start = 0; start < safe.length(); start += 34) {
+                    String part = safe.substring(start, Math.min(start + 34, safe.length()));
+                    content.append("1 0 0 1 8 ").append(y).append(" Tm (")
+                            .append(escapePdf(part)).append(") Tj\n");
+                    y -= lineHeight;
+                }
+            } else {
+                content.append("1 0 0 1 8 ").append(y).append(" Tm (")
+                        .append(escapePdf(safe)).append(") Tj\n");
+                y -= lineHeight;
+            }
+        }
+        content.append("ET\n");
+
+        byte[] stream = content.toString().getBytes(StandardCharsets.US_ASCII);
+        String[] objects = new String[] {
+                "<< /Type /Catalog /Pages 2 0 R >>",
+                "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pageWidth + " " + pageHeight + "] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>",
+                "<< /Length " + stream.length + " >>\nstream\n" + content + "endstream"
+        };
+
+        try (var out = Files.newOutputStream(output)) {
+            java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+            buffer.write("%PDF-1.4\n".getBytes(StandardCharsets.US_ASCII));
+            java.util.List<Integer> offsets = new java.util.ArrayList<>();
+            offsets.add(0);
+            for (int i = 0; i < objects.length; i++) {
+                offsets.add(buffer.size());
+                buffer.write((i + 1 + " 0 obj\n").getBytes(StandardCharsets.US_ASCII));
+                buffer.write(objects[i].getBytes(StandardCharsets.US_ASCII));
+                buffer.write("\nendobj\n".getBytes(StandardCharsets.US_ASCII));
+            }
+            int xrefOffset = buffer.size();
+            buffer.write(("xref\n0 " + (objects.length + 1) + "\n0000000000 65535 f \n")
+                    .getBytes(StandardCharsets.US_ASCII));
+            for (int i = 1; i < offsets.size(); i++) {
+                buffer.write(String.format(Locale.ROOT, "%010d 00000 n \n", offsets.get(i))
+                        .getBytes(StandardCharsets.US_ASCII));
+            }
+            buffer.write(("trailer\n<< /Size " + (objects.length + 1) + " /Root 1 0 R >>\nstartxref\n"
+                    + xrefOffset + "\n%%EOF\n").getBytes(StandardCharsets.US_ASCII));
+            buffer.writeTo(out);
+        }
+        return output;
+    }
+
+    private int parseNumberAfterColon(String line) {
+        try {
+            return Integer.parseInt(line.substring(line.indexOf(':') + 1).trim());
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
+    private String escapePdf(String value) {
+        return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+                .replaceAll("[^\\x20-\\x7E]", "?");
     }
 
     private void showInfo(String message) {
