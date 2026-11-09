@@ -75,22 +75,45 @@
                     <Label text="Add menu item" styleClass="section-title"/>
 
                     <Label text="Item name"/>
-                    <TextField fx:id="nameField" promptText="Item name"/>
+                    <TextField fx:id="nameField"
+                               promptText="Item name"
+                               styleClass="menu-input"
+                               maxWidth="Infinity"
+                               prefHeight="42" minHeight="42" maxHeight="42"/>
 
                     <Label text="Category"/>
                     <ComboBox fx:id="categoryCombo"
-                              minWidth="200"
-                              prefWidth="220"
-                              minHeight="42"
-                              prefHeight="42"
-                              maxHeight="42"
-                              styleClass="category-combo"/>
+                              promptText="Select category"
+                              styleClass="menu-input"
+                              maxWidth="Infinity"
+                              prefHeight="42" minHeight="42" maxHeight="42"/>
 
                     <Label text="Price (₹)"/>
-                    <TextField fx:id="priceField" promptText="e.g. 80"/>
+                    <TextField fx:id="priceField"
+                               promptText="e.g. 80"
+                               styleClass="menu-input"
+                               maxWidth="Infinity"
+                               prefHeight="42" minHeight="42" maxHeight="42"/>
 
-                    <Button text="Save item" onAction="#saveItem"
-                            styleClass="primary-button" maxWidth="Infinity"/>
+                    <Label text="Item Photo" />
+                    <Button fx:id="choosePhotoButton"
+                            text="Choose Photo"
+                            onAction="#chooseItemPhoto"
+                            styleClass="menu-input choose-photo-button"
+                            maxWidth="Infinity"
+                            prefHeight="42" minHeight="42" maxHeight="42"/>
+                    <Label fx:id="photoNameLabel"
+                           text="No photo selected"
+                           styleClass="photo-name-label"
+                           maxWidth="Infinity"
+                           wrapText="true"/>
+
+                    <Button fx:id="saveButton"
+                            text="Save item"
+                            onAction="#saveItem"
+                            styleClass="save-item-button"
+                            maxWidth="Infinity"
+                            prefHeight="42" minHeight="42" maxHeight="42"/>
                 </VBox>
 
                 <VBox styleClass="panel" spacing="12" HBox.hgrow="ALWAYS">

@@ -82,7 +82,10 @@
                     maxWidth="Infinity"/>
 
             <Region VBox.vgrow="ALWAYS"/>
-
+            <Button fx:id="aboutButton"
+                    text="About DineDesk"
+                    onAction="#handleAboutDineDesk"
+                    styleClass="about-button"/>
             <VBox styleClass="panel" spacing="5">
                 <Label text="●  Local data safe"
                        style="-fx-text-fill: #07884F; -fx-font-weight: bold;"/>

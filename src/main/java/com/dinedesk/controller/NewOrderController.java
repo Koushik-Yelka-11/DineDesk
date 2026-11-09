@@ -44,6 +44,18 @@ import javafx.scene.layout.Priority;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.animation.PauseTransition;
+import javafx.application.Platform;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
+import javafx.scene.text.TextAlignment;
+import javafx.util.Duration;
+import javafx.print.PageLayout;
+import javafx.print.Paper;
+import javafx.print.PrintSides;
+import javafx.print.Printer;
+import javafx.print.PrinterAttributes;
 
 public class NewOrderController {
 
@@ -539,115 +551,209 @@ public class NewOrderController {
 
     @FXML
     private void saveOrder() {
-        // If a previous order was saved but could not be printed, retry that
-        // receipt first. Never create a duplicate order on a print retry.
-        if (pendingReceipt != null) {
-            printPendingReceipt();
+
+        // 1. Check whether the cart is empty
+        if (cartItems == null || cartItems.isEmpty()) {
+            showToast(
+                    "Order not saved! \nPlease select at least one item before printing.",
+                    false
+            );
             return;
         }
 
-        if (cartItems.isEmpty()) {
-            showInfo("Add at least one item before printing the bill.");
+// 2. Check printer availability
+        PrinterJob printerJob = PrinterJob.createPrinterJob();
+
+        if (printerJob == null) {
+            showToast(
+                    "Order not saved! \nNo printer available. Check your printer connection.",
+                    false
+            );
             return;
         }
 
-        // Snapshot the cart before saving so the receipt cannot change if the UI changes.
+        // STEP 3: Take a snapshot of the cart.
         List<CartEntry> receiptItems = new ArrayList<>();
+
         for (CartEntry item : cartItems) {
             receiptItems.add(new CartEntry(
-                    item.menuItemId, item.name, item.price, item.quantity));
+                    item.menuItemId,
+                    item.name,
+                    item.price,
+                    item.quantity
+            ));
         }
 
+        // STEP 4: Prepare date, time and total.
         String date = LocalDate.now().toString();
+
         LocalTime now = LocalTime.now();
-        String time = now.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+        String time = now.format(
+                DateTimeFormatter.ofPattern("HH:mm:ss")
+        );
+
         String displayDate = LocalDate.parse(date)
                 .format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-        String displayTime = now.format(DateTimeFormatter.ofPattern("hh:mm a"));
 
-        String insertOrder = """
-                INSERT INTO orders
-                    (order_date, order_time, token_number, total_bill)
-                VALUES (?, ?, ?, ?)
-                """;
-        String insertItem = """
-                INSERT INTO order_items(order_id, menu_item_id, quantity, price)
-                VALUES (?, ?, ?, ?)
-                """;
+        String displayTime = now.format(
+                DateTimeFormatter.ofPattern("hh:mm a")
+        );
 
         double total = receiptItems.stream()
                 .mapToDouble(CartEntry::getLineTotal)
                 .sum();
 
+        String insertOrder = """
+            INSERT INTO orders
+                (order_date, order_time, token_number, total_bill)
+            VALUES (?, ?, ?, ?)
+            """;
+
+        String insertItem = """
+            INSERT INTO order_items
+                (order_id, menu_item_id, quantity, price)
+            VALUES (?, ?, ?, ?)
+            """;
+
+        // STEP 5: Start a database transaction.
+        // Nothing is permanently saved until printing succeeds.
         try (Connection connection = Database.connect()) {
+
             connection.setAutoCommit(false);
 
             try {
+
+                // Generate the next daily token.
                 int token;
-                try (PreparedStatement tokenQuery = connection.prepareStatement(
-                        "SELECT COALESCE(MAX(token_number), 0) + 1 "
-                                + "FROM orders WHERE order_date = ?")) {
+
+                try (PreparedStatement tokenQuery =
+                             connection.prepareStatement(
+                                     """
+                                     SELECT COALESCE(MAX(token_number), 0) + 1
+                                     FROM orders
+                                     WHERE order_date = ?
+                                     """
+                             )) {
+
                     tokenQuery.setString(1, date);
+
                     try (ResultSet result = tokenQuery.executeQuery()) {
                         result.next();
                         token = result.getInt(1);
                     }
                 }
 
+                // Insert the order inside the uncommitted transaction.
                 int orderId;
-                try (PreparedStatement orderStatement = connection.prepareStatement(
-                        insertOrder, Statement.RETURN_GENERATED_KEYS)) {
+
+                try (PreparedStatement orderStatement =
+                             connection.prepareStatement(
+                                     insertOrder,
+                                     Statement.RETURN_GENERATED_KEYS
+                             )) {
+
                     orderStatement.setString(1, date);
                     orderStatement.setString(2, time);
                     orderStatement.setInt(3, token);
                     orderStatement.setDouble(4, total);
+
                     orderStatement.executeUpdate();
 
-                    try (ResultSet keys = orderStatement.getGeneratedKeys()) {
+                    try (ResultSet keys =
+                                 orderStatement.getGeneratedKeys()) {
+
                         if (!keys.next()) {
                             throw new java.sql.SQLException(
-                                    "Could not retrieve the saved order ID.");
+                                    "Could not retrieve the order ID."
+                            );
                         }
+
                         orderId = keys.getInt(1);
                     }
                 }
 
+                // Insert order items inside the same transaction.
                 try (PreparedStatement itemStatement =
                              connection.prepareStatement(insertItem)) {
+
                     for (CartEntry item : receiptItems) {
+
                         itemStatement.setInt(1, orderId);
                         itemStatement.setInt(2, item.menuItemId);
                         itemStatement.setInt(3, item.quantity);
                         itemStatement.setDouble(4, item.price);
+
                         itemStatement.addBatch();
                     }
+
                     itemStatement.executeBatch();
                 }
 
+                // Build the receipt using the generated order details.
+                String receipt = buildReceipt(
+                        orderId,
+                        token,
+                        displayDate,
+                        displayTime,
+                        receiptItems,
+                        total
+                );
+
+                // STEP 6: Attempt printing BEFORE committing the transaction.
+                boolean printed = printReceipt(receipt);
+
+                if (!printed) {
+
+                    // Printing failed: discard the uncommitted order.
+                    connection.rollback();
+
+                    // Keep all cart items so the customer can retry.
+                    pendingReceipt = null;
+
+                    showToast(
+                            "Bill was not printed. The order was not saved.",
+                            false
+                    );
+
+                    return;
+                }
+
+                // STEP 7: Printing succeeded. Now permanently save the order.
                 connection.commit();
 
-                pendingReceipt = buildReceipt(
-                        orderId, token, displayDate, displayTime, receiptItems, total);
+                // STEP 8: Clear the cart only after successful printing
+                // and successful database commit.
+                pendingReceipt = null;
 
-                // Clear the submitted cart after the database commit. If printing
-                // fails, pendingReceipt remains available for a safe retry while a
-                // new customer can start a separate order.
                 cartItems.clear();
+
+                cartListView.refresh();
+
                 updateTotals();
 
-                // The order is committed before printing. A printer error must not
-                // roll back or duplicate this order.
-                printPendingReceipt();
+                showToast(
+                        "Bill printed and order saved successfully!",
+                        true
+                );
 
             } catch (Exception exception) {
-                connection.rollback();
+
+                // Roll back the order if an error occurs before commit.
+                try {
+                    connection.rollback();
+                } catch (Exception rollbackException) {
+                    exception.addSuppressed(rollbackException);
+                }
+
                 throw exception;
+
             } finally {
                 connection.setAutoCommit(true);
             }
 
         } catch (Exception exception) {
-            showError("Could not save order", exception);
+            showError("Could not process order", exception);
         }
     }
 
@@ -695,93 +801,146 @@ public class NewOrderController {
 
 
     private void printPendingReceipt() {
-        if (pendingReceipt == null) {
+
+        if (pendingReceipt == null || pendingReceipt.isBlank()) {
+            showToast(
+                    "Please select at least one item before printing the bill.",
+                    false
+            );
             return;
         }
 
-        Path pdf;
+        boolean printed = printReceipt(pendingReceipt);
 
-        // STEP 1: Always generate and save the PDF first.
-        try {
-            pdf = createReceiptPdf(pendingReceipt);
+        if (printed) {
+            pendingReceipt = null;
+            showToast("Bill printed successfully!", true);
+        }
+    }
 
-            System.out.println("====================================");
-            System.out.println("DineDesk receipt PDF generated:");
-            System.out.println(pdf.toAbsolutePath());
-            System.out.println("File exists: " + Files.exists(pdf));
-            System.out.println("====================================");
+    private boolean printReceipt(String receipt) {
 
-        } catch (Exception exception) {
-            showError("Could not generate receipt PDF", exception);
-            return;
+        if (receipt == null || receipt.isBlank()) {
+            return false;
         }
 
-        // STEP 2: Attempt to print using the computer's configured printer.
+        // Check printer availability.
         PrinterJob job = PrinterJob.createPrinterJob();
 
         if (job == null) {
-            openReceiptPdf(pdf);
-
-            showInfo(
-                    "The order has been saved, but no printer is available.\n\n"
-                            + "Your bill has been saved as a PDF at:\n"
-                            + pdf.toAbsolutePath()
-                            + "\n\nConnect a printer to print the bill."
+            showToast(
+                    "No printer available. Check your printer connection.",
+                    false
             );
-
-            // Keep pendingReceipt so printing can be retried later.
-            return;
+            return false;
         }
 
-        Text receiptText = new Text(pendingReceipt);
+        Text receiptText = new Text(receipt);
+
         receiptText.setFont(Font.font("Monospaced", 9));
         receiptText.setWrappingWidth(250);
 
-        boolean printed = false;
-
         try {
-            printed = job.printPage(receiptText);
 
-            if (printed) {
-                printed = job.endJob();
-            } else {
+            boolean pagePrinted = job.printPage(receiptText);
+
+            if (!pagePrinted) {
                 job.cancelJob();
+
+                showToast(
+                        "Printing failed. Please check your printer.",
+                        false
+                );
+
+                return false;
             }
 
+            boolean jobCompleted = job.endJob();
+
+            if (!jobCompleted) {
+                showToast(
+                        "Printing failed. Please try again.",
+                        false
+                );
+
+                return false;
+            }
+
+            return true;
+
         } catch (Exception exception) {
+
             exception.printStackTrace();
 
             try {
                 job.cancelJob();
             } catch (Exception ignored) {
-                // The print job may already have ended.
+                // The print job might already have ended.
             }
 
-            printed = false;
+            showToast(
+                    "Printing failed. Please check your printer.",
+                    false
+            );
+
+            return false;
+        }
+    }
+    private void showToast(String message, boolean success) {
+
+        if (sidebar == null || sidebar.getScene() == null) {
+            return;
         }
 
-        // STEP 3: Handle the result.
-        if (printed) {
-            pendingReceipt = null;
+        javafx.scene.Scene scene = sidebar.getScene();
+        javafx.scene.Parent currentRoot = scene.getRoot();
 
-            showInfo(
-                    "Bill printed successfully!\n\n"
-                            + "PDF copy saved at:\n"
-                            + pdf.toAbsolutePath()
-            );
+        StackPane overlayRoot;
+
+        if (currentRoot instanceof StackPane
+                && Boolean.TRUE.equals(
+                currentRoot.getProperties().get("dinedesk-toast-root"))) {
+
+            overlayRoot = (StackPane) currentRoot;
 
         } else {
-            openReceiptPdf(pdf);
 
-            showInfo(
-                    "The order has been saved, but printing failed.\n\n"
-                            + "Your PDF bill is available at:\n"
-                            + pdf.toAbsolutePath()
-                            + "\n\nCheck your printer connection and try printing again."
-            );
+            overlayRoot = new StackPane();
+            overlayRoot.getStyleClass().add("toast-overlay-root");
+            overlayRoot.getChildren().add(currentRoot);
+            overlayRoot.getProperties().put("dinedesk-toast-root", true);
 
-            // Keep pendingReceipt so a retry will not create a duplicate order.
+            scene.setRoot(overlayRoot);
         }
+
+        // Remove an existing toast before showing another.
+        overlayRoot.getChildren().removeIf(node ->
+                node.getStyleClass().contains("toast-message"));
+
+        Label toast = new Label(message);
+        toast.getStyleClass().add("toast-message");
+        toast.getStyleClass().add(
+                success ? "toast-success" : "toast-error"
+        );
+
+        toast.setWrapText(true);
+        toast.setMaxWidth(560);
+        toast.setMouseTransparent(true);
+
+        StackPane.setAlignment(toast, Pos.TOP_CENTER);
+        StackPane.setMargin(toast, new Insets(24, 20, 0, 20));
+
+        overlayRoot.getChildren().add(toast);
+
+        javafx.animation.PauseTransition timer =
+                new javafx.animation.PauseTransition(
+                        javafx.util.Duration.seconds(2)
+                );
+
+        timer.setOnFinished(event ->
+                overlayRoot.getChildren().remove(toast));
+
+        timer.play();
     }
 
     private void openReceiptPdf(Path pdf) {

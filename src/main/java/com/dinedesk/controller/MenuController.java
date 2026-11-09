@@ -7,24 +7,95 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-
+import javafx.scene.layout.*;
+import javafx.geometry.Pos;
+import javafx.stage.FileChooser;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javafx.print.PrinterJob;
+import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 
 public class MenuController extends NavController {
 
-    @FXML
-    private VBox categoryContainer;
+    @FXML private ComboBox<String> categoryCombo;
+    @FXML private TextField nameField;
+    @FXML private TextField priceField;
+    @FXML private Label photoNameLabel;
+    @FXML private Button choosePhotoButton;
+    @FXML private Button saveButton;
+    @FXML private VBox categoryContainer;
 
+    private File selectedImage;
     @FXML
-    private TextField nameField, priceField;
+    private void chooseItemPhoto() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Choose Menu Item Photo");
 
-    @FXML
-    private ComboBox<String> categoryCombo;
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(
+                        "Image Files",
+                        "*.png", "*.jpg", "*.jpeg", "*.webp"
+                )
+        );
 
+        if (choosePhotoButton == null || choosePhotoButton.getScene() == null) {
+            return;
+        }
+
+        selectedImage = fileChooser.showOpenDialog(
+                choosePhotoButton.getScene().getWindow()
+        );
+
+        if (selectedImage != null) {
+            photoNameLabel.setText(selectedImage.getName());
+        }
+    }
+    private String saveMenuImage(String itemName, File source)
+            throws IOException {
+
+        // Save to the project's resource folder so the image is available to the app.
+        Path imageDirectory = Path.of(
+                "src", "main", "resources", "com", "dinedesk", "images", "menu"
+        );
+        Files.createDirectories(imageDirectory);
+
+        String extension = getImageExtension(source.getName());
+
+        String filename = itemName.trim()
+                .replaceAll("\\s+", "-")
+                .replaceAll("[^a-zA-Z0-9._-]", "")
+                + extension;
+
+        Path destination = imageDirectory.resolve(filename);
+
+        Files.copy(
+                source.toPath(),
+                destination,
+                StandardCopyOption.REPLACE_EXISTING
+        );
+
+        return destination.toString();
+    }
+
+    private String getImageExtension(String filename) {
+        int dotIndex = filename.lastIndexOf('.');
+
+        if (dotIndex < 0) {
+            return ".png";
+        }
+
+        return filename.substring(dotIndex).toLowerCase();
+    }
     private MenuRow selectedRow;
     private final List<TableView<MenuRow>> categoryTables = new ArrayList<>();
 
@@ -54,8 +125,11 @@ public class MenuController extends NavController {
         }
     }
 
+
     @FXML
     private void initialize() {
+        categoryCombo.setPromptText("Select category");
+        categoryCombo.getSelectionModel().clearSelection();
         loadCategoriesIntoCombo();
         load();
     }
@@ -63,16 +137,18 @@ public class MenuController extends NavController {
     private void loadCategoriesIntoCombo() {
         categoryCombo.getItems().clear();
 
-        String sql = "SELECT id, name FROM categories ORDER BY id";
+        String sql = "SELECT name FROM categories ORDER BY name COLLATE NOCASE";
+        try (Connection connection = Database.connect();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sql)) {
 
-        try (Connection c = Database.connect();
-             Statement s = c.createStatement();
-             ResultSet r = s.executeQuery(sql)) {
-
-            while (r.next()) {
-                categoryCombo.getItems().add(r.getString("name"));
+            while (resultSet.next()) {
+                categoryCombo.getItems().add(resultSet.getString("name"));
             }
-        } catch (Exception e) {
+            // Do not select an item by default: the prompt remains visible.
+            categoryCombo.getSelectionModel().clearSelection();
+            categoryCombo.setValue(null);
+        } catch (SQLException e) {
             error(e);
         }
     }
@@ -247,9 +323,19 @@ public class MenuController extends NavController {
         try {
             String itemName = nameField.getText() == null ? "" : nameField.getText().trim();
             String priceText = priceField.getText() == null ? "" : priceField.getText().trim();
+            String selectedCategory = categoryCombo.getValue();
 
-            if (itemName.isBlank() || categoryCombo.getValue() == null || priceText.isBlank()) {
-                throw new Exception("Enter an item name, category, and price.");
+            if (itemName.isBlank()) {
+                throw new Exception("Enter an item name.");
+            }
+            if (selectedCategory == null || selectedCategory.isBlank()) {
+                throw new Exception("Please select a category.");
+            }
+            if (priceText.isBlank()) {
+                throw new Exception("Enter the item price.");
+            }
+            if (selectedImage == null || !selectedImage.isFile()) {
+                throw new Exception("Please choose a photo for this menu item.");
             }
 
             double price = Double.parseDouble(priceText);
@@ -257,15 +343,17 @@ public class MenuController extends NavController {
                 throw new Exception("Enter a valid price greater than or equal to ₹0.");
             }
 
-            String sql =
-                    "INSERT INTO menu_items(category_id, name, price) " +
-                            "SELECT id, ?, ? FROM categories WHERE name = ?";
+            // Copy the selected image as Item-Name.ext into resources/com/dinedesk/images/menu.
+            saveMenuImage(itemName, selectedImage);
+
+            String sql = "INSERT INTO menu_items(category_id, name, price) " +
+                    "SELECT id, ?, ? FROM categories WHERE name = ?";
 
             try (Connection c = Database.connect();
                  PreparedStatement p = c.prepareStatement(sql)) {
                 p.setString(1, itemName);
                 p.setDouble(2, price);
-                p.setString(3, categoryCombo.getValue());
+                p.setString(3, selectedCategory);
 
                 int affectedRows = p.executeUpdate();
                 if (affectedRows == 0) {
@@ -275,7 +363,6 @@ public class MenuController extends NavController {
 
             clearFields();
             load();
-
         } catch (NumberFormatException e) {
             error(new Exception("Enter a valid numeric price, for example 80 or 80.50."));
         } catch (Exception e) {
@@ -322,6 +409,11 @@ public class MenuController extends NavController {
         nameField.clear();
         priceField.clear();
         categoryCombo.getSelectionModel().clearSelection();
+        categoryCombo.setValue(null);
+        selectedImage = null;
+        if (photoNameLabel != null) {
+            photoNameLabel.setText("No photo selected");
+        }
         selectedRow = null;
 
         for (TableView<MenuRow> table : categoryTables) {
@@ -331,5 +423,48 @@ public class MenuController extends NavController {
 
     private void error(Exception e) {
         new Alert(Alert.AlertType.ERROR, e.getMessage()).showAndWait();
+    }
+    private void printBillDirectly(Node billContent) {
+        PrinterJob printerJob = PrinterJob.createPrinterJob();
+
+        if (printerJob == null) {
+            showAlert(
+                    Alert.AlertType.ERROR,
+                    "Printer Error",
+                    "No printer is available. Please connect or configure a printer."
+            );
+            return;
+        }
+
+        boolean printed = printerJob.printPage(billContent);
+
+        if (printed) {
+            printerJob.endJob();
+
+            showAlert(
+                    Alert.AlertType.INFORMATION,
+                    "Print Successful",
+                    "The bill has been sent to the printer."
+            );
+        } else {
+            printerJob.cancelJob();
+
+            showAlert(
+                    Alert.AlertType.ERROR,
+                    "Print Failed",
+                    "Unable to print the bill. Please check your printer."
+            );
+        }
+    }
+
+    private void showAlert(
+            Alert.AlertType type,
+            String title,
+            String message) {
+
+        Alert alert = new Alert(type, message, ButtonType.OK);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.showAndWait();
     }
 }

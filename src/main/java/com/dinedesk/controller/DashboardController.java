@@ -2,20 +2,23 @@ package com.dinedesk.controller;
 
 import com.dinedesk.database.Database;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.*;
+import javafx.stage.Popup;
+import javafx.stage.Window;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.sql.Statement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.util.Locale;
-
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
 public class DashboardController extends NavController {
 
     @FXML private Label salesLabel;
@@ -23,6 +26,112 @@ public class DashboardController extends NavController {
     @FXML private Label dateLabel;
     @FXML private VBox recentOrdersBox;
     @FXML private VBox recentOrdersEmptyState;
+    @FXML
+    private Button aboutButton;
+    @FXML
+    private void handleAboutDineDesk() {
+
+        // Add or edit your application information here.
+        String aboutText = """
+            Welcome to DineDesk!
+
+            Your reliable partner for smooth and efficient
+            restaurant management.
+
+            APPLICATION INFORMATION
+            Application Name: DineDesk POS
+            Brand: UdupiDesk
+            Version: 1.0
+            Application Type: Offline Restaurant Billing System
+            Database: SQLite
+            Platform: Desktop Application
+
+            KEY FEATURES
+            • Menu and category management
+            • Quick order creation and billing
+            • Automatic bill calculations
+            • Daily token number generation
+            • Kitchen Order Ticket (KOT) printing
+            • Order history and search
+            • Daily and monthly sales reports
+            • Database backup and restore
+
+            OUR GOAL
+            To simplify restaurant operations through
+            fast billing and reliable offline data storage.
+
+            Thank you for choosing DineDesk!
+            Have a great day and a successful business!
+            """;
+
+        Window owner = aboutButton.getScene().getWindow();
+
+        Label title = new Label("About DineDesk");
+        title.setStyle(
+                "-fx-font-size: 22px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #111827;"
+        );
+
+        Label content = new Label(aboutText);
+        content.setWrapText(true);
+        content.setStyle(
+                "-fx-font-size: 13px;" +
+                        "-fx-text-fill: #475569;" +
+                        "-fx-line-spacing: 4px;"
+        );
+
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefViewportHeight(320);
+        scrollPane.setStyle(
+                "-fx-background-color: transparent;" +
+                        "-fx-background: transparent;"
+        );
+
+        Button closeButton = new Button("Close");
+        closeButton.setStyle(
+                "-fx-background-color: #0866FF;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-background-radius: 8px;" +
+                        "-fx-padding: 10px 24px;" +
+                        "-fx-cursor: hand;"
+        );
+
+        Popup popup = new Popup();
+
+        VBox card = new VBox(18, title, scrollPane, closeButton);
+        card.setPadding(new Insets(26));
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPrefWidth(480);
+        card.setStyle(
+                "-fx-background-color: white;" +
+                        "-fx-background-radius: 16px;" +
+                        "-fx-border-color: #DCE6F5;" +
+                        "-fx-border-radius: 16px;"
+        );
+
+        StackPane wrapper = new StackPane(card);
+        wrapper.setPadding(new Insets(10));
+
+        popup.getContent().add(wrapper);
+        popup.setAutoHide(true);
+        popup.setHideOnEscape(true);
+
+        closeButton.setOnAction(event -> popup.hide());
+
+        popup.show(owner);
+
+        // Center the popup over the existing application window.
+        popup.setX(
+                owner.getX() + (owner.getWidth() - wrapper.prefWidth(-1)) / 2
+        );
+
+        popup.setY(
+                owner.getY() + (owner.getHeight() - 440) / 2
+        );
+    }
     @FXML
     private void initialize() {
         LocalDate today = LocalDate.now();

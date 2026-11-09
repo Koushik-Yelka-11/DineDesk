@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.image.Image?>
-<?import javafx.scene.image.ImageView?>
+        <?import javafx.scene.control.*?>
+        <?import javafx.scene.layout.*?>
+        <?import javafx.scene.image.Image?>
+        <?import javafx.scene.image.ImageView?>
 
 <BorderPane xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.dinedesk.controller.SettingsController"
             styleClass="root">
 
+    <!-- Sidebar -->
     <left>
-
         <VBox fx:id="sidebar"
               prefWidth="255"
               minWidth="255"
@@ -41,7 +41,10 @@
             </HBox>
 
             <Label text="WORKSPACE"
-                   style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 12 12 4 12;"/>
+                   style="-fx-text-fill: #94A3B8;
+                          -fx-font-size: 10px;
+                          -fx-font-weight: bold;
+                          -fx-padding: 12 12 4 12;"/>
 
             <Button text="🏠   Dashboard"
                     onAction="#openDashboard"
@@ -69,9 +72,12 @@
                     maxWidth="Infinity"/>
 
             <Label text="SYSTEM"
-                   style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 20 12 4 12;"/>
+                   style="-fx-text-fill: #94A3B8;
+                          -fx-font-size: 10px;
+                          -fx-font-weight: bold;
+                          -fx-padding: 20 12 4 12;"/>
 
-            <Button text="🛠️️   Settings"
+            <Button text="🛠️   Settings"
                     onAction="#openSettings"
                     styleClass="nav-primary"
                     maxWidth="Infinity"/>
@@ -83,84 +89,78 @@
 
             <Region VBox.vgrow="ALWAYS"/>
 
+            <!-- About button -->
+            <Button fx:id="aboutButton"
+                    text="About DineDesk"
+                    onAction="#handleAboutDineDesk"
+                    styleClass="about-button"
+                    maxWidth="Infinity"/>
+
+            <!-- Local data status -->
             <VBox styleClass="panel" spacing="5">
                 <Label text="●  Local data safe"
-                       style="-fx-text-fill: #07884F; -fx-font-weight: bold;"/>
+                       style="-fx-text-fill: #07884F;
+                              -fx-font-weight: bold;"/>
 
                 <Label text="Your database stays on this device"
                        wrapText="true"
-                       style="-fx-text-fill: #94A3B8; -fx-font-size: 10px;"/>
+                       style="-fx-text-fill: #94A3B8;
+                              -fx-font-size: 10px;"/>
             </VBox>
 
             <Label text="DineDesk POS · v1.0"
                    maxWidth="Infinity"
                    alignment="CENTER"
-                   style="-fx-text-fill: #94A3B8; -fx-font-size: 10px; -fx-padding: 8 0 0 0;"/>
+                   style="-fx-text-fill: #94A3B8;
+                          -fx-font-size: 10px;
+                          -fx-padding: 8 0 0 0;"/>
 
         </VBox>
     </left>
 
+    <!-- Main content -->
     <center>
         <VBox styleClass="page" spacing="22">
 
-            <HBox alignment="CENTER_LEFT" spacing="12">
-                <VBox HBox.hgrow="ALWAYS" spacing="5">
-                    <Label text="SYSTEM"
-                           style="-fx-text-fill: #2864F0; -fx-font-size: 10px; -fx-font-weight: bold;"/>
+            <!-- Page heading -->
+            <VBox spacing="5">
+                <Label text="SYSTEM"
+                       style="-fx-text-fill: #2864F0;
+                              -fx-font-size: 10px;
+                              -fx-font-weight: bold;"/>
 
-                    <Label text="Settings"
-                           styleClass="page-title"/>
+                <Label text="Settings"
+                       styleClass="page-title"/>
 
-                    <Label text="Manage your DineDesk application preferences."
-                           styleClass="page-subtitle"/>
-                </VBox>
-
-            </HBox>
-
-            <VBox styleClass="panel" spacing="14">
-                <Label text="Application settings"
-                       styleClass="section-title"/>
-
-                <Label text="DineDesk runs offline and stores menu and order records in dinedesk.db in the project working directory."
-                       wrapText="true"
-                       styleClass="body-copy"/>
-
-                <Button text="About DineDesk"
-                        onAction="#showInfo"
-                        styleClass="secondary-button"
-                        maxWidth="220"/>
+                <Label text="Manage your DineDesk application preferences."
+                       styleClass="page-subtitle"/>
             </VBox>
 
-            <VBox styleClass="panel" spacing="14">
-                <Label text="Order management"
-                       styleClass="section-title"/>
+            <!-- Order management card -->
+            <VBox styleClass="order-management-card" spacing="14">
 
-                <Label text="Remove saved orders and clear order history. Your menu items and categories will remain unchanged."
-                       wrapText="true"
-                       styleClass="body-copy"/>
 
                 <HBox alignment="CENTER_LEFT" spacing="16">
+
                     <VBox spacing="5" HBox.hgrow="ALWAYS">
+
                         <Label text="Reset all orders"
-                               style="-fx-font-weight: bold; -fx-text-fill: #111827;"/>
+                               styleClass="section-title"/>
 
                         <Label text="This action cannot be undone."
-                               style="-fx-text-fill: #DC2626; -fx-font-size: 12px;"/>
+                               styleClass="reset-order-warning"/>
+
                     </VBox>
 
                     <Button text="Reset Orders"
                             onAction="#resetOrders"
-                            style="-fx-background-color: #DC2626;
-                                   -fx-text-fill: white;
-                                   -fx-font-weight: bold;
-                                   -fx-background-radius: 8;
-                                   -fx-padding: 10 18;
-                                   -fx-cursor: hand;"/>
+                            styleClass="reset-orders-button"/>
+
                 </HBox>
+
             </VBox>
 
         </VBox>
     </center>
-
 
 </BorderPane>

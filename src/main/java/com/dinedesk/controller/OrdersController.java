@@ -15,7 +15,17 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
-
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.geometry.Insets;
+import javafx.scene.layout.HBox;
+import javafx.beans.property.ReadOnlyIntegerWrapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -130,8 +140,18 @@ public class OrdersController extends NavController {
                 TitledPane datePane = new TitledPane(labelDate, content);
                 datePane.setExpanded(date.equals(today) || !search.isEmpty());
                 datePane.setAnimated(false);
-                datePane.setStyle("-fx-font-size: 13px; -fx-font-weight: bold;");
+
+                datePane.setStyle(
+                        "-fx-font-size: 13px;" +
+                                "-fx-font-weight: bold;" +
+                                "-fx-border-color: transparent;" +
+                                "-fx-background-color: transparent;" +
+                                "-fx-background-insets: 0;" +
+                                "-fx-border-insets: 0;"
+                );
+
                 ordersContainer.getChildren().add(datePane);
+
             }
         } catch (Exception exception) {
             exception.printStackTrace();
@@ -162,11 +182,160 @@ public class OrdersController extends NavController {
         total.setCellValueFactory(row -> row.getValue().total);
         total.setPrefWidth(130);
 
-        table.getColumns().addAll(id, date, time, token, total);
+        TableColumn<OrderRow, Void> detailsColumn = new TableColumn<>("Details");
+        detailsColumn.setPrefWidth(100);
+        detailsColumn.setMinWidth(90);
+
+        detailsColumn.setCellFactory(column -> new TableCell<>() {
+            private final Button detailsButton = new Button("Details");
+
+            {
+                detailsButton.setStyle(
+                        "-fx-background-color: #EAF2FF;" +
+                                "-fx-text-fill: #245DDB;" +
+                                "-fx-background-radius: 6;" +
+                                "-fx-cursor: hand;"
+                );
+
+                detailsButton.setOnAction(event -> {
+                    OrderRow selectedOrder = getTableView()
+                            .getItems()
+                            .get(getIndex());
+
+                    showOrderDetails(selectedOrder.id.get());
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : detailsButton);
+            }
+        });
+        table.getColumns().addAll(id, date, time, token, total, detailsColumn);
         table.setPlaceholder(new Label("No orders for this date."));
         return table;
     }
+    private void showOrderDetails(int orderId) {
+        TableView<ItemQuantity> itemsTable = new TableView<>();
 
+        TableColumn<ItemQuantity, String> itemColumn =
+                new TableColumn<>("Item");
+
+        itemColumn.setCellValueFactory(data ->
+                data.getValue().itemName);
+
+        itemColumn.setPrefWidth(260);
+
+        TableColumn<ItemQuantity, Number> quantityColumn =
+                new TableColumn<>("Quantity");
+
+        quantityColumn.setCellValueFactory(data ->
+                data.getValue().quantity);
+
+        quantityColumn.setPrefWidth(100);
+
+        itemsTable.getColumns().addAll(itemColumn, quantityColumn);
+        itemsTable.setColumnResizePolicy(
+                TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN
+        );
+
+        String sql = """
+            
+                SELECT mi.name AS item_name,
+                                           oi.quantity AS quantity
+                                    FROM order_items oi
+                                    INNER JOIN menu_items mi
+                                        ON mi.id = oi.menu_item_id
+                                    WHERE oi.order_id = ?
+                                    ORDER BY mi.name
+            """;
+
+        try (Connection connection = Database.connect();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setInt(1, orderId);
+
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    itemsTable.getItems().add(
+                            new ItemQuantity(
+                                    result.getString("item_name"),
+                                    result.getInt("quantity")
+                            )
+                    );
+                }
+            }
+
+        } catch (Exception exception) {
+            exception.printStackTrace();
+
+            new Alert(
+                    Alert.AlertType.ERROR,
+                    "Could not load order items:\n" + exception.getMessage()
+            ).showAndWait();
+
+            return;
+        }
+
+        if (itemsTable.getItems().isEmpty()) {
+            itemsTable.setPlaceholder(
+                    new Label("No items found for this order.")
+            );
+        }
+
+        itemsTable.setPrefHeight(
+                Math.min(350, Math.max(100, itemsTable.getItems().size() * 40 + 45))
+        );
+
+        Label title = new Label("Order Details");
+        title.setStyle(
+                "-fx-font-size: 20px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #172033;"
+        );
+
+        Button closeButton = new Button("Close");
+        closeButton.setPrefWidth(90);
+        closeButton.setStyle(
+                "-fx-background-color: #EAF2FF;" +
+                        "-fx-text-fill: #245DDB;" +
+                        "-fx-background-radius: 7;" +
+                        "-fx-cursor: hand;"
+        );
+
+        HBox buttonRow = new HBox(closeButton);
+        buttonRow.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+
+        VBox layout = new VBox(15, title, itemsTable, buttonRow);
+        layout.setPadding(new Insets(20));
+        layout.setStyle("-fx-background-color: white;");
+
+        Stage popup = new Stage();
+        popup.setTitle("Order Details");
+        popup.initModality(Modality.APPLICATION_MODAL);
+
+        if (ordersContainer.getScene() != null
+                && ordersContainer.getScene().getWindow() != null) {
+            popup.initOwner(ordersContainer.getScene().getWindow());
+        }
+
+        popup.setScene(new Scene(layout, 400, 300));
+        popup.setResizable(false);
+
+        closeButton.setOnAction(event -> popup.close());
+
+        popup.showAndWait();
+    }
+    public static class ItemQuantity {
+        private final StringProperty itemName = new SimpleStringProperty();
+        private final IntegerProperty quantity = new SimpleIntegerProperty();
+
+        public ItemQuantity(String itemName, int quantity) {
+            this.itemName.set(itemName);
+            this.quantity.set(quantity);
+        }
+    }
     private String formatDate(String value) {
         try { return LocalDate.parse(value).format(DISPLAY_DATE); }
         catch (Exception ignored) { return value; }
