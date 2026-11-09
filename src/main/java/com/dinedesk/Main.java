@@ -9,7 +9,7 @@ import javafx.stage.Stage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
-
+import com.dinedesk.database.Database;
 public class Main extends Application {
 
     private static Stage stage;
@@ -21,6 +21,9 @@ public class Main extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
         stage = primaryStage;
+
+        // Initialize database and run pending migrations.
+        Database.initialize();
 
         stage.setMinWidth(1000);
         stage.setMinHeight(650);
@@ -191,3 +194,4 @@ public class Main extends Application {
         );
     }
 }
+//hello koushik
