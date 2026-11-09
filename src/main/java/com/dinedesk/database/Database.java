@@ -1,3 +1,4 @@
+
 package com.dinedesk.database;
 
 import java.sql.*;
@@ -8,7 +9,15 @@ public final class Database {
     }
 
     public static Connection connect() throws SQLException {
-        Connection c = DriverManager.getConnection("jdbc:sqlite:dinedesk.db");
+
+        java.nio.file.Path dbPath =
+                java.nio.file.Paths.get("dinedesk.db").toAbsolutePath();
+
+        System.out.println("DineDesk Database: " + dbPath);
+
+        Connection c = DriverManager.getConnection(
+                "jdbc:sqlite:" + dbPath
+        );
 
         try (Statement s = c.createStatement()) {
             s.execute("PRAGMA foreign_keys=ON");
@@ -18,19 +27,12 @@ public final class Database {
         return c;
     }
 
-    public static java.sql.Connection getConnection() throws java.sql.SQLException {
-        java.sql.Connection connection =
-                java.sql.DriverManager.getConnection("jdbc:sqlite:dinedesk.db");
-
-        try (java.sql.Statement statement = connection.createStatement()) {
-            statement.execute("PRAGMA foreign_keys = ON");
-            statement.execute("PRAGMA busy_timeout = 5000");
-        }
-
-        return connection;
+    public static Connection getConnection() throws SQLException {
+        return connect();
     }
 
     public static void initialize() {
+
         String[] q = {
                 "CREATE TABLE IF NOT EXISTS categories(" +
                         "id INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -61,52 +63,106 @@ public final class Database {
                         "FOREIGN KEY(menu_item_id) REFERENCES menu_items(id))"
         };
 
-        try (
-                Connection c = connect();
-                Statement s = c.createStatement()
-        ) {
-            for (String x : q) {
-                s.execute(x);
-            }
+        try (Connection c = connect()) {
 
-            // Migrate existing DineDesk databases that predate the order_time column.
-            boolean hasOrderTime = false;
-            try (ResultSet columns = s.executeQuery("PRAGMA table_info(orders)")) {
-                while (columns.next()) {
-                    if ("order_time".equalsIgnoreCase(columns.getString("name"))) {
-                        hasOrderTime = true;
-                        break;
+            c.setAutoCommit(false);
+
+            try {
+
+                try (Statement s = c.createStatement()) {
+
+                    for (String sql : q) {
+                        s.execute(sql);
+                    }
+
+                    // Add order_time to older databases if required.
+                    boolean hasOrderTime = false;
+
+                    try (ResultSet columns =
+                                 s.executeQuery("PRAGMA table_info(orders)")) {
+
+                        while (columns.next()) {
+                            if ("order_time".equalsIgnoreCase(
+                                    columns.getString("name"))) {
+                                hasOrderTime = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!hasOrderTime) {
+                        s.execute(
+                                "ALTER TABLE orders ADD COLUMN " +
+                                        "order_time TEXT NOT NULL DEFAULT '00:00:00'"
+                        );
                     }
                 }
-            }
-            if (!hasOrderTime) {
-                s.execute("ALTER TABLE orders ADD COLUMN order_time TEXT NOT NULL DEFAULT '00:00:00'");
-            }
 
-            String[] cats = {
-                    "Tiffins",
-                    "Dosa Items",
-                    "Rice Items",
-                    "Meals",
-                    "Chinese",
-                    "Juice"
-            };
+                // Create the required categories.
+                String[] cats = {
+                        "Tiffins",
+                        "Dosa Items",
+                        "Rice Items & Chinese",
+                        "Meals",
+                        "Rotis",
+                        "Sweets & Snacks",
+                        "Juice"
+                };
 
-            try (
-                    PreparedStatement p = c.prepareStatement(
-                            "INSERT OR IGNORE INTO categories(name) VALUES(?)"
-                    )
-            ) {
-                for (String n : cats) {
-                    p.setString(1, n);
-                    p.addBatch();
+                try (PreparedStatement p = c.prepareStatement(
+                        "INSERT OR IGNORE INTO categories(name) VALUES(?)")) {
+
+                    for (String name : cats) {
+                        p.setString(1, name);
+                        p.addBatch();
+                    }
+
+                    p.executeBatch();
                 }
 
-                p.executeBatch();
+                // Merge Rice Items and Chinese into Rice Items & Chinese.
+                String mergeSql =
+                        "UPDATE menu_items " +
+                                "SET category_id = (" +
+                                "    SELECT id FROM categories " +
+                                "    WHERE name = 'Rice Items & Chinese'" +
+                                ") " +
+                                "WHERE category_id IN (" +
+                                "    SELECT id FROM categories " +
+                                "    WHERE name IN ('Rice Items', 'Chinese')" +
+                                ")";
+
+                try (Statement s = c.createStatement()) {
+                    int movedItems = s.executeUpdate(mergeSql);
+
+                    System.out.println(
+                            "Menu items moved into Rice Items & Chinese: "
+                                    + movedItems
+                    );
+
+                    // Remove the old categories after moving their items.
+                    s.executeUpdate(
+                            "DELETE FROM categories " +
+                                    "WHERE name IN ('Rice Items', 'Chinese')"
+                    );
+                }
+
+                c.commit();
+
+                System.out.println(
+                        "DineDesk database initialization and category migration completed."
+                );
+
+            } catch (SQLException e) {
+
+                c.rollback();
+                throw e;
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(
+                    "Database initialization failed.", e
+            );
         }
     }
 }
