@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="dinedesk.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="2138"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="DineDesk_100_Menu_Items" custom_title="0" dock_id="2" table="4,23:mainDineDesk_100_Menu_Items"/><dock_state state="000000ff00000000fd00000001000000020000000000000000fc0100000002fb000000160064006f0063006b00420072006f00770073006500310100000000ffffffff0000000000000000fb000000160064006f0063006b00420072006f00770073006500320100000000ffffffff0000010100ffffff000000000000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1*">-- DineDesk: import the 100 menu items from MENU_PRICES.pdf
+-- Run this script against the DineDesk SQLite database.
+-- Existing menu items are preserved; exact category/name duplicates are skipped.
+-- All rice and Chinese dishes are stored under one category: 'Rice Items &amp; Chinese'.
+PRAGMA foreign_keys = ON;
+BEGIN IMMEDIATE;
+
+-- Create any menu categories that do not already exist.
+INSERT OR IGNORE INTO categories (name) VALUES ('Rice Items &amp; Chinese');
+INSERT OR IGNORE INTO categories (name) VALUES ('Dosa Items');
+INSERT OR IGNORE INTO categories (name) VALUES ('Meals');
+INSERT OR IGNORE INTO categories (name) VALUES ('Rotis');
+INSERT OR IGNORE INTO categories (name) VALUES ('Sweets &amp; Snacks');
+INSERT OR IGNORE INTO categories (name) VALUES ('Tiffins');
+
+-- Move any previously imported Rice Items / Chinese dishes into the combined category.
+-- Remove an old-category row first if the same dish already exists in the combined category.
+DELETE FROM menu_items
+WHERE category_id IN (SELECT id FROM categories WHERE name IN ('Rice Items', 'Chinese'))
+  AND EXISTS (
+      SELECT 1 FROM menu_items AS combined
+      WHERE combined.category_id = (SELECT id FROM categories WHERE name = 'Rice Items &amp; Chinese')
+        AND combined.name = menu_items.name
+  );
+
+UPDATE menu_items
+SET category_id = (SELECT id FROM categories WHERE name = 'Rice Items &amp; Chinese')
+WHERE category_id IN (SELECT id FROM categories WHERE name IN ('Rice Items', 'Chinese'));
+
+-- Remove the old categories after their items have been moved.
+DELETE FROM categories
+WHERE name IN ('Rice Items', 'Chinese')
+  AND NOT EXISTS (
+      SELECT 1 FROM menu_items
+      WHERE menu_items.category_id = categories.id
+  );
+-- Insert menu items without duplicating an existing item in the same category.
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Idly (2 pcs)', 50 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Idly (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Sambar Idly', 60 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Sambar Idly');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Rasam Idly', 60 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Rasam Idly');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Single Idly Sambar', 35 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Single Idly Sambar');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Idly (3 pcs)', 70 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Idly (3 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Ghee Idly (2 pcs)', 60 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Ghee Idly (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Karam Idly (2 pcs)', 60 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Karam Idly (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Ghee Karam Idly (2 pcs)', 70 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Ghee Karam Idly (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Ragi Idly (2 pcs)', 70 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Ragi Idly (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Millet Idly (2 pcs)', 70 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Millet Idly (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Vada (2 pcs)', 70 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Vada (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Sambar Vada (2 pcs)', 80 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Sambar Vada (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Rasam Vada (2 pcs)', 80 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Rasam Vada (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Single Vada (1 pc)', 40 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Single Vada (1 pc)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Single Vada Sambar (1 pc)', 50 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Single Vada Sambar (1 pc)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Dahi Vada (2 pcs)', 80 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Dahi Vada (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Single Dahi Vada (1 pc)', 45 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Single Dahi Vada (1 pc)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'S. Idly + S. Vada', 60 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'S. Idly + S. Vada');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'S. Idly + S. Vada Sambar', 70 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'S. Idly + S. Vada Sambar');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'P. Idly + S. Vada', 85 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'P. Idly + S. Vada');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'P. Idly + S. Vada Sambar', 95 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'P. Idly + S. Vada Sambar');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Upma', 50 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Upma');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Tomato Bath', 50 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Tomato Bath');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Mysore Bajji (4 pcs)', 60 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Mysore Bajji (4 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'S. Mysore Bajji (2 pcs)', 35 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'S. Mysore Bajji (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Poori (3 pcs)', 70 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Poori (3 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'S. Poori (2 pcs)', 50 FROM categories WHERE name = 'Tiffins' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'S. Poori (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Plain Dosa', 50 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Plain Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Masala Dosa', 60 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Masala Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Onion Dosa', 70 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Onion Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Onion Masala Dosa', 80 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Onion Masala Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Plain Set Dosa (3 pcs)', 80 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Plain Set Dosa (3 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Plain Uttapam', 70 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Plain Uttapam');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Set Dosa', 100 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Set Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Uttapam', 100 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Uttapam');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Karam Set Dosa', 90 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Karam Set Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Onion Set Dosa', 90 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Onion Set Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Onion Uttapam', 80 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Onion Uttapam');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Plain Pesarattu', 60 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Plain Pesarattu');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Onion Pesarattu', 70 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Onion Pesarattu');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Masala Pesarattu', 70 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Masala Pesarattu');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Pesarattu', 90 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Pesarattu');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Butter Pesarattu', 80 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Butter Pesarattu');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Cheese Pesarattu', 90 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Cheese Pesarattu');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Cheese Paneer Pesarattu', 100 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Cheese Paneer Pesarattu');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Masala Rava Dosa', 80 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Masala Rava Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Onion Rava Dosa', 90 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Onion Rava Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Rava Dosa', 100 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Rava Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Cheese Rava Dosa', 100 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Cheese Rava Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Cheese Paneer Rava Dosa', 110 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Cheese Paneer Rava Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'MLA Dosa', 70 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'MLA Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'MLA Pesarattu', 80 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'MLA Pesarattu');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paper Dosa', 70 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paper Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Dosa', 90 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Masala Dosa', 100 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Masala Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Butter Paneer Dosa', 110 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Butter Paneer Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Cheese Paneer Dosa', 110 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Cheese Paneer Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, '70 mm Dosa', 100 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = '70 mm Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Ghee Dosa', 80 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Ghee Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Karam Dosa', 80 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Karam Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Steam Dosa', 80 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Steam Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Ragi Dosa', 70 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Ragi Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Butter Dosa', 100 FROM categories WHERE name = 'Dosa Items' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Butter Dosa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Veg Biryani', 130 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Veg Biryani');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Veg Fried Rice', 150 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Veg Fried Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Tomato Rice', 150 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Tomato Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Lemon Rice', 150 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Lemon Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Jeera Fried Rice', 150 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Jeera Fried Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Gobi Fried Rice', 150 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Gobi Fried Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Aloo Fried Rice', 150 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Aloo Fried Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Capsicum Fried Rice', 150 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Capsicum Fried Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Combo Rice', 150 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Combo Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Pongal Rice', 90 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Pongal Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Sambar Rice', 90 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Sambar Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Fried Rice', 170 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Fried Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Veg Manchurian', 100 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Veg Manchurian');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Veg Noodles', 100 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Veg Noodles');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Gobi Manchuria', 110 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Gobi Manchuria');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Manchuria', 130 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Manchuria');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Gobi Noodles', 110 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Gobi Noodles');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Paneer Noodles', 130 FROM categories WHERE name = 'Rice Items &amp; Chinese' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Paneer Noodles');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Chapathi (2 pcs)', 70 FROM categories WHERE name = 'Rotis' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Chapathi (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Single Chapathi (1 pc)', 35 FROM categories WHERE name = 'Rotis' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Single Chapathi (1 pc)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Dal Chapathi (2 pcs)', 80 FROM categories WHERE name = 'Rotis' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Dal Chapathi (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Parota (2 pcs)', 80 FROM categories WHERE name = 'Rotis' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Parota (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Single Parota (1 pc)', 40 FROM categories WHERE name = 'Rotis' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Single Parota (1 pc)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Dal Parota (2 pcs)', 90 FROM categories WHERE name = 'Rotis' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Dal Parota (2 pcs)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Madhur Vada', 60 FROM categories WHERE name = 'Sweets &amp; Snacks' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Madhur Vada');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Masala Vada', 60 FROM categories WHERE name = 'Sweets &amp; Snacks' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Masala Vada');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Goli Pakoda', 60 FROM categories WHERE name = 'Sweets &amp; Snacks' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Goli Pakoda');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Double Ka Meetha', 60 FROM categories WHERE name = 'Sweets &amp; Snacks' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Double Ka Meetha');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Rava Kesari', 60 FROM categories WHERE name = 'Sweets &amp; Snacks' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Rava Kesari');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Moong Dal Halwa', 60 FROM categories WHERE name = 'Sweets &amp; Snacks' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Moong Dal Halwa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Bombay Halwa', 60 FROM categories WHERE name = 'Sweets &amp; Snacks' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Bombay Halwa');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Plate Meals', 130 FROM categories WHERE name = 'Meals' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Plate Meals');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Plate Meals (Parcel)', 150 FROM categories WHERE name = 'Meals' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Plate Meals (Parcel)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Full Meals (Parcel)', 180 FROM categories WHERE name = 'Meals' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Full Meals (Parcel)');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Extra Rice', 60 FROM categories WHERE name = 'Meals' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Extra Rice');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Extra Curd', 30 FROM categories WHERE name = 'Meals' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Extra Curd');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Extra Papad', 20 FROM categories WHERE name = 'Meals' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Extra Papad');
+INSERT INTO menu_items (category_id, name, price) SELECT id, 'Extra Curry', 40 FROM categories WHERE name = 'Meals' AND NOT EXISTS (SELECT 1 FROM menu_items WHERE category_id = categories.id AND name = 'Extra Curry');
+
+COMMIT;
+
+-- Expected source item count: 100
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
