@@ -56,7 +56,8 @@ import javafx.print.Paper;
 import javafx.print.PrintSides;
 import javafx.print.Printer;
 import javafx.print.PrinterAttributes;
-
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.TextFlow;
 public class NewOrderController {
 
     @FXML private VBox sidebar;
@@ -757,49 +758,92 @@ public class NewOrderController {
         }
     }
 
+
+
     private String buildReceipt(int orderId, int token, String date, String time,
                                 List<CartEntry> items, double total) {
+
+        final int width = 33;
+        final int itemWidth = 22;
+
         StringBuilder receipt = new StringBuilder();
-        final int width = 32;
-        receipt.append(center("UDUPIDESK", width)).append('\n');
-        receipt.append(center("Restaurant Billing", width)).append('\n');
-        receipt.append("--------------------------------\n");
-        receipt.append(String.format(Locale.US, "Bill No : %d%n", orderId));
+
+        String separator = "-".repeat(width);
+
+        receipt.append("SRI RAGHAVENDRA UDIPI\n");
+        receipt.append(center("Flat No. 4, D. Pochampally, near Gandimaisamma, Hyderabad, Telangana-500043", width)).append('\n');
+        receipt.append(center("Mobile no. 9949698078", width)).append('\n');
+        receipt.append(separator).append('\n');
         receipt.append(String.format(Locale.US, "Token   : %03d%n", token));
         receipt.append("Date    : ").append(date).append('\n');
         receipt.append("Time    : ").append(time).append('\n');
-        receipt.append("--------------------------------\n");
-        receipt.append(String.format(Locale.US, "%-15s %3s %10s%n", "Item", "Qty", "Amount"));
-        receipt.append("--------------------------------\n");
+
+        receipt.append(separator).append('\n');
+
+        receipt.append(String.format(
+                Locale.US, "%-22s %4s %10s%n",
+                "Item", "Qty", "Amount"
+        ));
+
+        receipt.append(separator).append('\n');
 
         for (CartEntry item : items) {
+
             String itemName = item.name;
-            // Wrap long item names so the receipt remains readable on narrow paper.
-            while (itemName.length() > 15) {
-                receipt.append(itemName, 0, 15).append('\n');
-                itemName = itemName.substring(15);
+            int quantity = item.quantity;
+            double amount = item.getLineTotal();
+
+            // Print the first 22 characters with quantity and amount.
+            String firstLine = itemName.length() > itemWidth
+                    ? itemName.substring(0, itemWidth)
+                    : itemName;
+
+            receipt.append(String.format(
+                    Locale.US,
+                    "%-22s %4d %10.2f%n",
+                    firstLine,
+                    quantity,
+                    amount
+            ));
+
+            // Print remaining item name characters on separate lines.
+            if (itemName.length() > itemWidth) {
+                String remaining = itemName.substring(itemWidth);
+
+                while (!remaining.isEmpty()) {
+                    int end = Math.min(itemWidth, remaining.length());
+
+                    receipt.append("  ")
+                            .append(remaining, 0, end)
+                            .append('\n');
+
+                    remaining = remaining.substring(end);
+                }
             }
-            receipt.append(String.format(Locale.US, "%-15s %3d %10.2f%n",
-                    itemName, item.quantity, item.getLineTotal()));
         }
 
-        receipt.append("--------------------------------\n");
-        receipt.append(String.format(Locale.US, "Subtotal:%22.2f%n", total));
-        receipt.append(String.format(Locale.US, "TOTAL:%25.2f%n", total));
-        receipt.append("--------------------------------\n");
+        receipt.append(separator).append('\n');
+
+        receipt.append(String.format(
+                Locale.US, "%-7s%14.2f%n", "Total:", total
+        ));
+
+        receipt.append(separator).append('\n');
+
         receipt.append(center("Thank you! Visit Again.", width)).append('\n');
-        receipt.append(center("Powered by UdupiDesk", width)).append('\n');
-        receipt.append("\n\n");
+
+        receipt.append("\n\n\n\n");
+
         return receipt.toString();
     }
+
+
 
     private String center(String value, int width) {
         if (value.length() >= width) return value;
         int leftPadding = (width - value.length()) / 2;
         return " ".repeat(leftPadding) + value;
     }
-
-
     private void printPendingReceipt() {
 
         if (pendingReceipt == null || pendingReceipt.isBlank()) {
@@ -818,13 +862,14 @@ public class NewOrderController {
         }
     }
 
+
+
     private boolean printReceipt(String receipt) {
 
         if (receipt == null || receipt.isBlank()) {
             return false;
         }
 
-        // Check printer availability.
         PrinterJob job = PrinterJob.createPrinterJob();
 
         if (job == null) {
@@ -835,34 +880,195 @@ public class NewOrderController {
             return false;
         }
 
-        Text receiptText = new Text(receipt);
-
-        receiptText.setFont(Font.font("Monospaced", 9));
-        receiptText.setWrappingWidth(250);
-
         try {
 
-            boolean pagePrinted = job.printPage(receiptText);
+            Printer printer = job.getPrinter();
 
-            if (!pagePrinted) {
+            PageLayout defaultLayout = printer.getDefaultPageLayout();
+
+            PageLayout layout = printer.createPageLayout(
+                    defaultLayout.getPaper(),
+                    defaultLayout.getPageOrientation(),
+                    Printer.MarginType.HARDWARE_MINIMUM
+            );
+
+            double paperWidthMm =
+                    defaultLayout.getPaper().getWidth() * 25.4 / 72.0;
+
+            double printableWidth = layout.getPrintableWidth();
+            double printableHeight = layout.getPrintableHeight();
+
+            System.out.println("Printer: " + printer.getName());
+            System.out.println("Paper width: " + paperWidthMm + " mm");
+
+            if (paperWidthMm < 65 || paperWidthMm > 85) {
                 job.cancelJob();
-
                 showToast(
-                        "Printing failed. Please check your printer.",
+                        "Please configure 80 mm receipt paper in printer settings.",
                         false
                 );
-
                 return false;
             }
 
-            boolean jobCompleted = job.endJob();
+            if (printableWidth <= 0 || printableHeight <= 0) {
+                job.cancelJob();
+                showToast("Invalid printer page dimensions.", false);
+                return false;
+            }
 
-            if (!jobCompleted) {
+            // Create a receipt with independently formatted text.
+            TextFlow receiptFlow = new TextFlow();
+
+            receiptFlow.setTextAlignment(TextAlignment.LEFT);
+            receiptFlow.setLineSpacing(2);
+            receiptFlow.setPrefWidth(printableWidth);
+            receiptFlow.setMinWidth(printableWidth);
+            receiptFlow.setMaxWidth(printableWidth);
+
+            String[] lines = receipt.split("\\R", -1);
+
+            boolean itemHeaderSeen = false;
+            boolean itemSection = false;
+
+            for (int i = 0; i < lines.length; i++) {
+
+                String line = lines[i];
+
+                Text text = new Text(line + "\n");
+
+                // Restaurant name: large and bold.
+                if (i == 0) {
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.EXTRA_BOLD,
+                            16
+                    ));
+                }
+
+                // Restaurant address.
+                else if (line.trim().startsWith("Flat")) {
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            7
+                    ));
+                }
+
+                // Item table heading.
+                else if (line.trim().startsWith("Item")) {
+
+                    itemHeaderSeen = true;
+
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.BOLD,
+                            8
+                    ));
+                }
+
+// Detect the separators surrounding the item rows.
+                else if (itemHeaderSeen && line.trim().matches("-+")) {
+
+                    if (!itemSection) {
+                        itemSection = true;
+                    } else {
+                        itemSection = false;
+                        itemHeaderSeen = false;
+                    }
+
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            10
+                    ));
+                }
+
+// Only menu item rows get the smaller font.
+                else if (itemSection) {
+
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            8
+                    ));
+                }
+
+                // Total amount: larger and bold.
+                else if (line.trim().startsWith("Total:")){
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            15
+                    ));
+                }
+
+                // Footer.
+                else if (line.contains("Thank you!")
+                        || line.contains("Powered by")) {
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            10
+                    ));
+                }
+
+                // All remaining receipt details.
+                else {
+                    text.setFont(Font.font(
+                            "Monospaced",
+                            FontWeight.NORMAL,
+                            10
+                    ));
+                }
+
+                text.setFill(javafx.scene.paint.Color.BLACK);
+
+                receiptFlow.getChildren().add(text);
+            }
+
+            // Prepare layout before measuring.
+            receiptFlow.applyCss();
+            receiptFlow.autosize();
+            receiptFlow.layout();
+
+            double receiptHeight =
+                    receiptFlow.getLayoutBounds().getHeight();
+
+            System.out.println(
+                    "Receipt height: "
+                            + receiptHeight * 25.4 / 72.0
+                            + " mm"
+            );
+
+            job.getJobSettings().setPageLayout(layout);
+
+            if (receiptHeight > printableHeight) {
+                job.cancelJob();
+
                 showToast(
-                        "Printing failed. Please try again.",
+                        "Receipt exceeds configured paper length. "
+                                + "Increase the receipt paper length "
+                                + "in Windows printer preferences.",
                         false
                 );
+                return false;
+            }
 
+            // Print the formatted receipt.
+            boolean pagePrinted = job.printPage(layout, receiptFlow);
+
+            if (!pagePrinted) {
+                job.cancelJob();
+                showToast("Printing failed. Please check your printer.", false);
+                return false;
+            }
+
+            boolean completed = job.endJob();
+
+            if (!completed) {
+                showToast(
+                        "Printer could not complete the receipt.",
+                        false
+                );
                 return false;
             }
 
@@ -875,7 +1081,7 @@ public class NewOrderController {
             try {
                 job.cancelJob();
             } catch (Exception ignored) {
-                // The print job might already have ended.
+                // Ignore cancellation errors.
             }
 
             showToast(
@@ -886,6 +1092,8 @@ public class NewOrderController {
             return false;
         }
     }
+
+
     private void showToast(String message, boolean success) {
 
         if (sidebar == null || sidebar.getScene() == null) {
